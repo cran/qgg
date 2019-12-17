@@ -1,7 +1,7 @@
-4c3576ce5393ef3d0a93f05805dfeea1 *DESCRIPTION
+8eea1cb30ba6f159756f6771fad9939e *DESCRIPTION
 45e055f483fc88fe8d94430cecd51ede *NAMESPACE
 9dc39acc39ca72b47dfc34c8eaad5f91 *NEWS.md
-db79862d454a47334df75a0aa7c4ee4d *R/compute_genotype_matrix.R
+99c5857b19e372a94b2e91648f33bd5d *R/compute_genotype_matrix.R
 0b8db233a66e77a579e39c875feeebf6 *R/compute_grm.R
 a73ea198aacffb376d4bd8907e1b6798 *R/genomic_bayes.R
 4be1fd57d5160f8b08f7945a536e82d1 *R/genomic_reml.R
@@ -22,7 +22,7 @@ c3d193e0b6baec0aebda06af3c3d6519 *man/gbayes.Rd
 c9effe07dd5cc5b5f1fde8a38819a1ab *man/gblup.Rd
 35b5105d55ce321aa5b9470405866d51 *man/getGRM.Rd
 c87bce1101384322c0952f46853f0adf *man/getW.Rd
-4d30b1ba28d514465eb0528c827409ba *man/gprep.Rd
+78d7a23e70a52d80f062ae28f767f5c6 *man/gprep.Rd
 1154381b10222f330b87c84f619aa927 *man/greml.Rd
 1328e6957faa241a61c1be79dead0ad8 *man/grm.Rd
 eebdc624b9b33bcb5d15d0d01d76c88e *man/gscore.Rd
@@ -31,8 +31,8 @@ ef832f4988fdc1146789226776e1070b *man/gsea.Rd
 bbd20c1fe0fffad85a05833e2e51d580 *man/lma.Rd
 c8134274fdeafa34bf63c343b9d6e8de *man/mergeGRM.Rd
 85aafde68a73cd5f92e72b958418518e *man/qgg-package.Rd
-dfc6035a3c44599cec582d3399319721 *src/Makevars
+b3836e88c5b739789baa4414932f0aba *src/Makevars
 dd6b9c4a1f9abf02d124514cec21efbb *src/Makevars.win
-fc54a7442eb3eff33d78805ed4e924e2 *src/bedfuncs.f90
-75411157ce936f5028b2ad82ef309bc6 *src/bigreml.f90
-f37652d99a9e0b36aed6f758525649b1 *src/qgg_init.c
+96583581d38f6061736c2d4e4e35b67b *src/bedfuncs.f90
+95b4bab4115399dff1160278a2fe4981 *src/bigreml.f90
+56ef42f2bd1dc9c4d5316c2afb623d85 *src/qgg_init.c
