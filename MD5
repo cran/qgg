@@ -1,4 +1,4 @@
-8eea1cb30ba6f159756f6771fad9939e *DESCRIPTION
+b6c168426069ca2c6a850ebf72159d88 *DESCRIPTION
 45e055f483fc88fe8d94430cecd51ede *NAMESPACE
 9dc39acc39ca72b47dfc34c8eaad5f91 *NEWS.md
 99c5857b19e372a94b2e91648f33bd5d *R/compute_genotype_matrix.R
@@ -31,8 +31,8 @@ ef832f4988fdc1146789226776e1070b *man/gsea.Rd
 bbd20c1fe0fffad85a05833e2e51d580 *man/lma.Rd
 c8134274fdeafa34bf63c343b9d6e8de *man/mergeGRM.Rd
 85aafde68a73cd5f92e72b958418518e *man/qgg-package.Rd
-b3836e88c5b739789baa4414932f0aba *src/Makevars
-dd6b9c4a1f9abf02d124514cec21efbb *src/Makevars.win
+64484c55e4dd6c05af176c76e7c857a4 *src/Makevars
+821d8808e29a68d4d4d354a85750b27b *src/Makevars.win
 96583581d38f6061736c2d4e4e35b67b *src/bedfuncs.f90
-95b4bab4115399dff1160278a2fe4981 *src/bigreml.f90
+11626d4b622dab7571b866a946389457 *src/bigreml.f90
 56ef42f2bd1dc9c4d5316c2afb623d85 *src/qgg_init.c
