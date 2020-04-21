@@ -379,7 +379,7 @@
       rfnames(i) = filename2(1:nchar)
     enddo
 
-    call omp_set_num_threads(ncores)
+    !call omp_set_num_threads(ncores)
 
     do it = 1, maxit
     

@@ -89,10 +89,8 @@
 #'
 #' # Create marker sets
 #' setsGB <- list(A = colnames(W)) # gblup model
-#' setsGF <- list(C1 = colnames(W)[1:1000], C2 = colnames(W)[1001:2000],
-#'                C3 = colnames(W)[2000:10000]) # gfblup model
-#' setsGT <- list(C1 = colnames(W)[1:10], C2 = colnames(W)[1001:1010],
-#'                C3 = colnames(W)[1:10000]) # true model
+#' setsGF <- list(C1 = colnames(W)[1:500], C2 = colnames(W)[501:1000]) # gfblup model
+#' setsGT <- list(C1 = colnames(W)[1:10], C2 = colnames(W)[501:510]) # true model
 #'
 #' GB <- lapply(setsGB, function(x) {grm(W = W[, x])})
 #' GF <- lapply(setsGF, function(x) {grm(W = W[, x])})
@@ -202,10 +200,14 @@ remlr <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, id
     delta <- abs(theta - theta0)
     theta <- theta0
     output <- c(1:10, seq(11, maxit, 5))
-    if (verbose & it %in% output) print(paste(c("Iteration:", it, "Theta:", round(theta, 2)), sep = ""))
-    if (it == maxit) break
+    #if (verbose & it < 10 | it %in% output) print(paste(c("Iteration:", it, "Theta:", round(theta, 2)), sep = ""))
+    if (verbose) print(paste(c("Iteration:", it, "Theta:", round(theta, 2)), sep = ""))
+    if (it == maxit) {
+      warning("Maximum number of iterations reached. Try increasing maxit.")
+      break
+    }
   }
-  if (verbose) print(paste(c("Converged at Iteration:", it, "Theta:", round(theta, 2)), sep = ""))
+  if (it < maxit & verbose) print(paste(c("Converged at Iteration:", it, "Theta:", round(theta, 2)), sep = ""))
   V <- matrix(0, n, n)
   for (i in 1:np) {
     V <- V + G[[i]] * theta[i]

@@ -505,7 +505,7 @@
 
   integer(c_int64_t) :: pos14, nbytes14, offset14,i14
 
-  integer(c_int), external :: omp_get_thread_num
+  !integer(c_int), external :: omp_get_thread_num
 
   do i=1,nchars
     fnRAW(i:i) = char(fnRAWCHAR(i))
@@ -521,6 +521,8 @@
 
   filename = fnRAW(1:(nchar+3)) // C_NULL_CHAR
   mode =  'rb' // C_NULL_CHAR
+ 
+  ncores = 1
 
   do i=1,ncores
    fp(i) = fopen(filename, mode)
@@ -528,14 +530,15 @@
  
   ntotal=dble(nr)  
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
   prs=0.0d0
   prsmp=0.0d0
 
-  !$omp parallel do private(i,j,gr,gsc,nmiss,n0,n1,n2,thread,i14,pos14,raw,cfres)
+  !!$omp parallel do private(i,j,gr,gsc,nmiss,n0,n1,n2,thread,i14,pos14,raw,cfres)
   do i=1,nc
-    thread=omp_get_thread_num()+1
+    thread = 1
+    !thread=omp_get_thread_num()+1
     i14=cls(i)
     pos14 = offset14 + (i14-1)*nbytes14
     cfres=cseek(fp(thread),pos14,0)            
@@ -561,7 +564,7 @@
        if (s(i,j)/=0.0d0) prsmp(1:nr,j,thread) = prsmp(1:nr,j,thread) + gsc*s(i,j)
     enddo  
   enddo 
-  !$omp end parallel do
+  !!$omp end parallel do
 
   do i=1,ncores
    cfres=fclose(fp(i))
@@ -602,7 +605,7 @@
 
   integer(c_int64_t) :: pos14, nbytes14, offset14,i14
 
-  integer(c_int), external :: omp_get_thread_num
+  !integer(c_int), external :: omp_get_thread_num
 
   do i=1,nchars
     fnRAW(i:i) = char(fnRAWCHAR(i))
@@ -620,12 +623,14 @@
   mode =  'rb' // C_NULL_CHAR
   fp = fopen(filename, mode)
 
-  ntotal=dble(nr)  
+  ntotal=dble(nr)
 
-  call omp_set_num_threads(ncores)
+  ncores = 1  
+
+  !call omp_set_num_threads(ncores)
 
   setstat=0.0d0
-  !$omp parallel do private(i,j,i14,pos14,raw,gr,gsc,nmiss,n0,n1,n2,thread)
+  !!$omp parallel do private(i,j,i14,pos14,raw,gr,gsc,nmiss,n0,n1,n2,thread)
   do i=1,nc
     i14=cls(i)
     pos14 = offset14 + (i14-1)*nbytes14
@@ -653,7 +658,7 @@
        if (s(i,j)/=0.0d0) setstat(i,j) = sum(yadj(1:nr,j)*gsc*s(i,j))
     enddo  
   enddo 
-  !$omp end parallel do
+  !!$omp end parallel do
 
   cfres=fclose(fp)
 
@@ -685,7 +690,7 @@
 
   integer(c_int64_t) :: pos14, nbytes14, offset14,i14
 
-  integer(c_int), external :: omp_get_thread_num
+  !integer(c_int), external :: omp_get_thread_num
 
   do i=1,nchars
     fnRAW(i:i) = char(fnRAWCHAR(i))
@@ -706,15 +711,17 @@
   filename = fnRAW(1:(nchar+3)) // C_NULL_CHAR
   mode =  'rb' // C_NULL_CHAR
 
-  do i =1,ncores
+  ncores = 1
+  do i=1,ncores
    fp(i) = fopen(filename, mode)
   enddo
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
-  !$omp parallel do private(i,i14,pos14,raw,g,grws,thread,cfres)
+  !!$omp parallel do private(i,i14,pos14,raw,g,grws,thread,cfres)
   do i=1,nc
-    thread=omp_get_thread_num()+1
+    thread = 1 
+    !thread=omp_get_thread_num()+1
     i14=cls(i)
     pos14 = offset14 + (i14-1)*nbytes14
     cfres=cseek(fp(thread),pos14,0)            
@@ -756,7 +763,7 @@
   type(c_ptr):: fp
   integer(c_int) :: cfres 
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
   do i=1,nchars
     fnRAW(i:i) = char(fnRAWCHAR(i))
@@ -858,7 +865,7 @@
  
   integer(c_int64_t) :: pos14,nbytes14,offset14,i14
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
   if (scale==0) scale = 1
 
@@ -945,12 +952,14 @@
   integer(c_int) :: m,nsets,msets(nsets),p(nsets),np,ncores   
   integer(c_int) :: i,j,k1,k2,maxm,thread,multicore   
   real(c_double) :: stat(m),setstat(nsets),u,pstat
-  integer(c_int), external :: omp_get_thread_num
+  !integer(c_int), external :: omp_get_thread_num
 
   p=0
 
   multicore=0
-  if (ncores>1) multicore=1
+
+  !if (ncores>1) multicore=1
+  if (ncores>1) multicore=0 ! because openmp no longer supported
  
   maxm = m - maxval(msets) - 1
 
@@ -970,20 +979,20 @@
 
   case (1) ! multicore 
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
-  !$omp parallel do private(i,j,k1,k2,u,pstat)
-  do i=1,nsets
-    thread=omp_get_thread_num()+1 
-    do j=1,np
-      call random_number(u)
-      k1 = 1 + floor(maxm*u)  ! sample: k = n + floor((m+1-n)*u) n, n+1, ..., m-1, m
-      k2 = k1+msets(i)-1
-      pstat = sum(stat(k1:k2))
-      if (pstat > setstat(i)) p(i) = p(i) + 1
-    enddo
-  enddo   
-  !$omp end parallel do
+  !!$omp parallel do private(i,j,k1,k2,u,pstat)
+  !do i=1,nsets
+  !  thread=omp_get_thread_num()+1 
+  !  do j=1,np
+  !    call random_number(u)
+  !    k1 = 1 + floor(maxm*u)  ! sample: k = n + floor((m+1-n)*u) n, n+1, ..., m-1, m
+  !    k2 = k1+msets(i)-1
+  !    pstat = sum(stat(k1:k2))
+  !    if (pstat > setstat(i)) p(i) = p(i) + 1
+  !  enddo
+  !enddo   
+  !!$omp end parallel do
 
   end select
 
@@ -1010,7 +1019,7 @@
   integer(c_int) :: n,l,info,ncores
   real(c_double) :: GRM(n,n),evals(n),work(n*(3+n/2))
 
-  call omp_set_num_threads(ncores)
+  !call omp_set_num_threads(ncores)
 
   info=0
   l=0
