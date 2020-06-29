@@ -4,9 +4,18 @@
 \alias{lma}
 \title{Single marker association analysis using linear models or linear mixed models}
 \usage{
-lma(y = NULL, X = NULL, W = NULL, Glist = NULL, fit = NULL,
-  statistic = "mastor", ids = NULL, rsids = NULL, msize = 100,
-  scale = TRUE)
+lma(
+  y = NULL,
+  X = NULL,
+  W = NULL,
+  Glist = NULL,
+  fit = NULL,
+  statistic = "mastor",
+  ids = NULL,
+  rsids = NULL,
+  msize = 100,
+  scale = TRUE
+)
 }
 \arguments{
 \item{y}{vector or matrix of phenotypes}

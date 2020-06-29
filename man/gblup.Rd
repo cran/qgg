@@ -4,8 +4,14 @@
 \alias{gblup}
 \title{Compute Genomic BLUP values}
 \usage{
-gblup(GRMlist = NULL, GRM = NULL, fit = NULL, ids = NULL,
-  idsCLS = NULL, idsRWS = NULL)
+gblup(
+  GRMlist = NULL,
+  GRM = NULL,
+  fit = NULL,
+  ids = NULL,
+  idsCLS = NULL,
+  idsRWS = NULL
+)
 }
 \arguments{
 \item{GRMlist}{list providing information about GRM matrix stored in binary files on disk}

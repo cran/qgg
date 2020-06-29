@@ -4,10 +4,24 @@
 \alias{grm}
 \title{Computing the genomic relationship matrix (GRM)}
 \usage{
-grm(Glist = NULL, GRMlist = NULL, ids = NULL, rsids = NULL,
-  rws = NULL, cls = NULL, W = NULL, method = "add", scale = TRUE,
-  msize = 100, ncores = 1, fnG = NULL, overwrite = FALSE,
-  returnGRM = FALSE, miss = 0, task = "grm")
+grm(
+  Glist = NULL,
+  GRMlist = NULL,
+  ids = NULL,
+  rsids = NULL,
+  rws = NULL,
+  cls = NULL,
+  W = NULL,
+  method = "add",
+  scale = TRUE,
+  msize = 100,
+  ncores = 1,
+  fnG = NULL,
+  overwrite = FALSE,
+  returnGRM = FALSE,
+  miss = 0,
+  task = "grm"
+)
 }
 \arguments{
 \item{Glist}{list providing information about genotypes stored on disk}

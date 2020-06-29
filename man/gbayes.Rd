@@ -4,9 +4,19 @@
 \alias{gbayes}
 \title{Genomic prediction models implemented using Bayesian Methods (small data)}
 \usage{
-gbayes(y = NULL, W = NULL, sets = NULL, h2 = NULL, nsets = NULL,
-  nsamp = 50, nburn = 10, nsave = 10000, tol = 0.001,
-  method = "blasso", phi = c(0.999, 0.001))
+gbayes(
+  y = NULL,
+  W = NULL,
+  sets = NULL,
+  h2 = NULL,
+  nsets = NULL,
+  nsamp = 50,
+  nburn = 10,
+  nsave = 10000,
+  tol = 0.001,
+  method = "blasso",
+  phi = c(0.999, 0.001)
+)
 }
 \arguments{
 \item{y}{is a matrix of phenotypes}

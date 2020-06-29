@@ -4,10 +4,21 @@
 \alias{gprep}
 \title{Prepare genotype data for all statistical analyses (initial step)}
 \usage{
-gprep(Glist = NULL, task = "prepare", study = NULL, fnRAW = NULL,
-  fnLD = NULL, bedfiles = NULL, bimfiles = NULL, famfiles = NULL,
-  ids = NULL, rsids = NULL, overwrite = FALSE, msize = 100,
-  ncores = 1)
+gprep(
+  Glist = NULL,
+  task = "prepare",
+  study = NULL,
+  fnRAW = NULL,
+  fnLD = NULL,
+  bedfiles = NULL,
+  bimfiles = NULL,
+  famfiles = NULL,
+  ids = NULL,
+  rsids = NULL,
+  overwrite = FALSE,
+  msize = 100,
+  ncores = 1
+)
 }
 \arguments{
 \item{Glist}{only provided if task="summary" or task="sparseld"}

@@ -4,8 +4,15 @@
 \alias{adjLD}
 \title{LD pruning of summary statistics}
 \usage{
-adjLD(stat = NULL, statistics = "p-value", Glist = NULL, r2 = 0.9,
-  ldSets = NULL, threshold = 1, method = "pruning")
+adjLD(
+  stat = NULL,
+  statistics = "p-value",
+  Glist = NULL,
+  r2 = 0.9,
+  ldSets = NULL,
+  threshold = 1,
+  method = "pruning"
+)
 }
 \arguments{
 \item{stat}{vector or matrix of single marker statistics (e.g. coefficients, t-statistics, p-values)}

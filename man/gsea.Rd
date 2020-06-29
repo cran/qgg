@@ -4,9 +4,19 @@
 \alias{gsea}
 \title{Gene set enrichment analysis}
 \usage{
-gsea(stat = NULL, sets = NULL, Glist = NULL, W = NULL,
-  fit = NULL, g = NULL, e = NULL, threshold = 0.05,
-  method = "sum", nperm = 1000, ncores = 1)
+gsea(
+  stat = NULL,
+  sets = NULL,
+  Glist = NULL,
+  W = NULL,
+  fit = NULL,
+  g = NULL,
+  e = NULL,
+  threshold = 0.05,
+  method = "sum",
+  nperm = 1000,
+  ncores = 1
+)
 }
 \arguments{
 \item{stat}{vector or matrix of single marker statistics (e.g. coefficients, t-statistics, p-values)}
