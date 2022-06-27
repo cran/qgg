@@ -1,53 +1,52 @@
 ####################################################################################################################
-#    Module 4: GREML analysis
+#    Module 4: Genomic REML (GREML) analysis
 ####################################################################################################################
 #'
-#' Genomic REML analysis
+#' GREML analysis
 #'
 #' @description
-#' The greml function is used for estimation of genomic parameters (co-variance, heritability and correlation)
+#' The greml function is used for the estimation of genomic parameters (co-variance, heritability and correlation)
 #' for linear mixed models using restricted maximum likelihood estimation (REML) and genomic prediction using
 #' best linear unbiased prediction (BLUP).
 #'
 #' The linear mixed model can account for multiple genetic factors (fixed and random genetic marker effects),
-#' adjust for complex family relationships or population stratification, and adjust for other non-genetic factors
+#' adjust for complex family relationships or population stratification and adjust for other non-genetic factors
 #' including lifestyle characteristics. Different genetic architectures (infinitesimal, few large and many
 #' small effects) is accounted for by modeling genetic markers in different sets as fixed or random effects
 #' and by specifying individual genetic marker weights. Different genetic models (e.g. additive and non-additive)
 #' can be specified by providing additive and non-additive genomic relationship matrices (GRMs) (constructed using grm).
-#' The GRMs can be accessed from the R environment or from binary files stored on disk facilitating analyses of
+#' The GRMs can be accessed from the R environment or from binary files stored on disk facilitating the analyses of
 #' large-scale genetic data.
 #'
 #' The output contains estimates of variance components, fixed and random effects, first and second derivatives of
-#' log-likelihood, and the asymptotic standard deviation of parameter estimates.
+#' log-likelihood and the asymptotic standard deviation of parameter estimates.
 #'
 #' Assessment of predictive accuracy (including correlation and R2, and AUC for binary phenotypes) can be obtained
-#' by providing greml with a dataframe or list containing sample IDs used in the validation, see examples for details.
+#' by providing greml with a data frame, or a list that contains sample IDs used in the validation (see examples for details).
 #'
 #' Genomic parameters can also be estimated with DMU (http://www.dmu.agrsci.dk/DMU/) if interface =”DMU”.
 #' This option requires DMU to be installed locally, and the path to the DMU binary files has to be specified
 #' (see examples below for details).
 
-#' @param y vector or matrix of phenotypes
-#' @param X design matrix for factors modeled as fixed effects
-#' @param GRM list of one or more genomic relationship matrices
-#' @param GRMlist list providing information about GRM matrix stored in binary files on disk
-#' @param theta vector of initial values of co-variance for REML estimation
-#' @param ids vector of individuals used in the analysis
-#' @param validate dataframe or list of individuals used in cross-validation (one column/row for each validation set)
-#' @param maxit maximum number of iterations used in REML analysis
-#' @param tol tolerance, i.e. convergence criteria used in REML
-#' @param ncores number of cores used for the analysis
-#' @param fm formula with model statement for the linear mixed model
-#' @param data data frame containing the phenotypic observations and fixed factors specified in the model statements
-#' @param interface used for specifying whether to use R or Fortran implementations of REML
+#' @param y is a vector or matrix of phenotypes
+#' @param X is a design matrix for factors modeled as fixed effects
+#' @param GRM is a list of one or more genomic relationship matrices
+#' @param GRMlist is a list providing information about GRM matrix stored in binary files on disk
+#' @param theta is a vector of initial values of co-variance for REML estimation
+#' @param ids is a vector of individuals used in the analysis
+#' @param validate is a data frame or list of individuals used in cross-validation (one column/row for each validation set)
+#' @param maxit is the maximum number of iterations used in REML analysis
+#' @param tol is tolerance, i.e. convergence criteria used in REML
+#' @param ncores is the number of cores used for the analysis
+#' @param fm is a formula with model statement for the linear mixed model
+#' @param data is a data frame containing the phenotypic observations and fixed factors specified in the model statements
+#' @param interface is used for specifying whether to use R or Fortran implementations of REML
 #' @param wkdir is the working directory used for REML
-#' @param makeplots logical if TRUE makes some plots or parameter estimates and prediction accuracy during cross validation
-#' @param verbose logical if TRUE print more details during optimization
-#' @param bin directory for fortran binaries (e.g. DMU binaries dmu1 and dmuai)
+#' @param verbose is a logical; if TRUE it prints more details during optimization
+#' @param bin is the directory for fortran binaries (e.g. DMU binaries dmu1 and dmuai)
 
 #'
-#' @return Returns a list structure including
+#' @return returns a list structure including:
 #' \item{llik}{log-likelihood at convergence}
 #' \item{theta}{covariance estimates from REML}
 #' \item{asd}{asymptotic standard deviation}
@@ -55,13 +54,13 @@
 #' \item{varb}{vector of variances of fixed effect estimates}
 #' \item{g}{vector or matrix of random effect estimates}
 #' \item{e}{vector or matrix of residual effects}
-#' \item{accuracy}{matrix of prediction accuracies (only returned if validate is provided)}
+#' \item{accuracy}{matrix of prediction accuracies (only returned if [validate?] is provided)}
 
 
 #' @author Peter Soerensen
 
 
-#' @references Lee, S. H., & van Der Werf, J. H. (2006). An efficient variance component approach implementing an average information REML suitable for combined LD and linkage mapping with a general complex pedigree. Genetics Selection Evolution, 38(1), 25.
+#' @references Lee, S. H., & van der Werf, J. H. (2006). An efficient variance component approach implementing an average information REML suitable for combined LD and linkage mapping with a general complex pedigree. Genetics Selection Evolution, 38(1), 25.
 
 #' @examples
 #'
@@ -117,7 +116,7 @@
 
 greml <- function(y = NULL, X = NULL, GRMlist = NULL, GRM = NULL, theta = NULL,
                   ids = NULL, validate = NULL, maxit = 100, tol = 0.00001, bin = NULL,
-                  ncores = 1, wkdir = getwd(), verbose = FALSE, makeplots = FALSE,
+                  ncores = 1, wkdir = getwd(), verbose = FALSE, 
                   interface = "R", fm = NULL, data = NULL) {
   if (!is.null(GRM)) {
     if (is.null(validate)) {
@@ -131,8 +130,7 @@ greml <- function(y = NULL, X = NULL, GRMlist = NULL, GRM = NULL, theta = NULL,
       fit <- cvreml(
         y = y, X = X, GRMlist = GRMlist, G = GRM, theta = theta, ids = ids,
         validate = validate, maxit = maxit, tol = tol, bin = bin,
-        ncores = ncores, verbose = verbose, wkdir = wkdir,
-        makeplots = makeplots
+        ncores = ncores, verbose = verbose, wkdir = wkdir
       )
     }
   }
@@ -159,6 +157,7 @@ remlr <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, id
   np <- length(G) + 1
   if (is.null(theta)) theta <- rep(sd(y) / np**2, np)
   n <- length(y)
+  if(is.null(X)) X <- model.matrix(y~1)
   ai <- matrix(0, ncol = np, nrow = np)
   s <- matrix(0, ncol = 1, nrow = np)
   tol <- 0.00001
@@ -257,55 +256,177 @@ remlr <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, id
   ))
 }
 
-
 cvreml <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, ids = NULL, validate = NULL,
-                   maxit = 100, tol = 0.00001, bin = NULL, ncores = 1, wkdir = getwd(), verbose = FALSE,
-                   makeplots = FALSE) {
+                   maxit = 100, tol = 0.00001, bin = NULL, ncores = 1, wkdir = getwd(), verbose = FALSE) 
+  {
+  
   n <- length(y)
-  theta <- yobs <- ypred <- yo <- yp <- NULL
+  if(is.null(X)) X <- model.matrix(y~1)
+  theta <- NULL
+  #theta <- yobst <- yobsv <- ypredt <- ypredv <- NULL
+  #yot <- ypt <- yft <- yat <- yrt <- yov <- ypv <- yfv <- yav <- yrv <- NULL
   res <- NULL
-  if (is.matrix(validate)) validate <- as.data.frame(validate)
+  
+  if (is.matrix(validate)) {
+    cvnames <- colnames(validate)
+    validate <- as.data.frame(validate, stringsAsFactors=FALSE)
+    names(validate) <- cvnames
+  }
   nv <- length(validate)
+  cvnames <- names(validate)
+  if(is.null(cvnames)) {
+    cvnames <- paste0("CV",1:nv)
+    names(validate) <- cvnames
+  }
+  
   typeoftrait <- "quantitative"
+  
   if (nlevels(factor(y)) == 2) typeoftrait <- "binary"
+
+  #training <- validation <- NULL
+  training <- validation <- vector(mode="list",length=nv)
+  #ghatt <- ghatv <- vector(mode="list",length=nv)
+  
   for (i in 1:nv) {
-    v <- validate[[i]]
-    t <- (1:n)[-v]
+    v <- validate[[i]] # index for validation
+    t <- (1:n)[-v] # index for training
     try( fit <- remlr(y = y[t], X = X[t, ], G = lapply(G, function(x) {
       x[t, t]
     }), verbose = verbose))
-    if(!class(fit)=="try-error") {
-    theta <- rbind(theta, as.vector(fit$theta))
-    np <- length(fit$theta)
-    ypred <- X[v, ] %*% fit$b
-    for (j in 1:(np - 1)) {
-      ypred <- ypred + G[[j]][v, t] %*% fit$Py * fit$theta[j]
-    }
-    yobs <- y[v]
-    if (!is.atomic(validate)) res <- rbind(res, acc(yobs = yobs, ypred = ypred, typeoftrait = typeoftrait))
-    yo <- c(yo, yobs)
-    yp <- c(yp, ypred)
-    }
-  }
 
-  if (is.atomic(validate)) res <- matrix(acc(yobs = yo, ypred = yp, typeoftrait = typeoftrait), nrow = 1)
+    if(!inherits(fit, "try-error")) {
+    #if(!class(fit)=="try-error") {
+      theta <- rbind(theta, as.vector(fit$theta))
+      np <- length(fit$theta)
+      ypredt <- X[t, ] %*% fit$b # fixed for training
+      ypredv <- X[v, ] %*% fit$b # fixed for validation
+      ghattrain <- ghatval <- NULL # random for training and validation
+      for (j in 1:(np - 1)) {
+        ypredt <- ypredt + G[[j]][t, t] %*% fit$Py * fit$theta[j]  # fixed + random for training
+        ghattrain <- cbind(ghattrain, G[[j]][t, t] %*% fit$Py * fit$theta[j]) # random for validation
+        ypredv <- ypredv + G[[j]][v, t] %*% fit$Py * fit$theta[j] # fixed + random for validation
+        ghatval <- cbind(ghatval, G[[j]][v, t] %*% fit$Py * fit$theta[j]) # random for validation
+      }
+      yobst <- y[t] # observation for training
+      yobsv <- y[v] # observation for validation
+      
+      if (!is.atomic(validate)) res <- rbind(res, acc(yobs = yobsv, ypred = ypredv, typeoftrait = typeoftrait))
+      #yot <- c(yot, yobst)
+      #ypt <- c(ypt, ypredt)
+      #yov <- c(yov, yobsv)
+      #ypv <- c(ypv, ypredv)
+
+      yft <- X[t, ] %*% fit$b # compute fixed effects for training
+      yfv <- X[v, ] %*% fit$b # compute fixed effects for validation
+      yat <- yobst - yft # compute phenotype adjusted for fixed effects for training
+      yav <- yobsv - yfv # compute phenotype adjusted for fixed effects for validation
+      yrt <- yobst - ypredt # compute residuals for training
+      yrv <- yobsv - ypredv # compute residuals for validation
+      
+      training[[i]]  <- cbind(yobst, ypredt, yft, yat, yrt, ghattrain)
+      validation[[i]]  <- cbind(yobsv, ypredv, yfv, yav, yrv, ghatval)
+
+      tnames <- as.character(1:length(y))      
+      if(!is.null(names(y))) tnames <- names(y) 
+      rownames(training[[i]]) <- tnames[t]
+      rownames(validation[[i]]) <- tnames[v]
+
+      colnames(training[[i]]) <- colnames(validation[[i]]) <- c("yobs", "ypred", "yfix", "yadj", "yres", names(G))
+    }
+    
+    #colnames(ghattrain) <- colnames(ghatval) <- names(G)
+    #colnames(ghatval) <- names(G)
+    #ghatt[[i]] <- ghattrain
+    #ghatv[[i]] <- ghatval
+    
+  }
+  
+  
+  # PSO this should be left out  
+  #  if (is.atomic(validate)) res <- matrix(acc(yobs = yov, ypred = ypv, typeoftrait = typeoftrait), nrow = 1)
+  # END PSO this should be left out  
+  
   # if(is.atomic(validate)) res <- matrix(qcpred(yobs=yo,ypred=yp,typeoftrait=typeoftrait),nrow=1)
+  
   res <- as.data.frame(res)
-  names(res) <- c("Corr", "R2", "Nagel R2", "AUC", "intercept", "slope", "MSPE")
+  rownames(res) <- cvnames
+  names(training) <- names(validation) <- cvnames
+  
+  #names(res) <- c("Corr", "R2", "Nagel R2", "AUC", "intercept", "slope", "MSPE")
   if (is.null(names(G))) names(G) <- paste("G", 1:(np - 1), sep = "")
   colnames(theta) <- c(names(G), "E")
   theta <- as.data.frame(round(theta, 3))
-  if (makeplots) {
-    layout(matrix(1:4, ncol = 2))
-    boxplot(res$Corr, main = "Predictive Ability", ylab = "Correlation")
-    boxplot(res$MSPE, main = "Prediction Error", ylab = "MSPE")
-    boxplot(theta, main = "Estimates", ylab = "Variance")
-    plot(y = yo, x = yp, xlab = "Predicted", ylab = "Observed")
-    coef <- lm(yo ~ yp)$coef
-    abline(a = coef[1], b = coef[2], lwd = 2, col = 2, lty = 2)
-  }
-  return(list(accuracy = res, theta = theta, yobs = yo, ypred = yp))
-}
+  rownames(theta) <- cvnames
+  #if (makeplots) {
+  #  layout(matrix(1:4, ncol = 2))
+  #  boxplot(res$Corr, main = "Predictive Ability", ylab = "Correlation")
+  #  boxplot(res$MSPE, main = "Prediction Error", ylab = "MSPE")
+  #  boxplot(theta, main = "Estimates", ylab = "Variance")
+  #  plot(y = yo, x = yp, xlab = "Predicted", ylab = "Observed")
+  #  coef <- lm(yo ~ yp)$coef
+  #  abline(a = coef[1], b = coef[2], lwd = 2, col = 2, lty = 2)
+  #}
+  
+  # return(list(accuracy = res, theta = theta, yobst = yot, ypredt = ypt, yrest = yrest, ghatt=ghatt, yobsv = yov, ypredv = ypv, yresv = yresv, ghatv=ghatv))
+  #return(list(accuracy = res, theta = theta, training = training, validation = validation, ghatt=ghatt, ghatv=ghatv))
+  return(list(accuracy = res, theta = theta, training = training, validation = validation))
+}  
+
+# cvreml <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, ids = NULL, validate = NULL,
+#                    maxit = 100, tol = 0.00001, bin = NULL, ncores = 1, wkdir = getwd(), verbose = FALSE,
+#                    makeplots = FALSE) {
+#   n <- length(y)
+#   theta <- yobs <- ypred <- yo <- yp <- NULL
+#   res <- NULL
+#   if (is.matrix(validate)) validate <- as.data.frame(validate)
+#   nv <- length(validate)
+#   typeoftrait <- "quantitative"
+#   if (nlevels(factor(y)) == 2) typeoftrait <- "binary"
+#   
+#   ghat <- vector(mode="list",length=nv)
+#   
+#   for (i in 1:nv) {
+#     v <- validate[[i]]
+#     t <- (1:n)[-v]
+#     try( fit <- remlr(y = y[t], X = X[t, ], G = lapply(G, function(x) {
+#       x[t, t]
+#     }), verbose = verbose))
+#     if(!class(fit)=="try-error") {
+#     theta <- rbind(theta, as.vector(fit$theta))
+#     np <- length(fit$theta)
+#     ypred <- X[v, ] %*% fit$b
+#     ghatv <- NULL
+#     for (j in 1:(np - 1)) {
+#       ypred <- ypred + G[[j]][v, t] %*% fit$Py * fit$theta[j]
+#       ghatv <- cbind(ghatv, G[[j]][v, t] %*% fit$Py * fit$theta[j])
+#     }
+#     yobs <- y[v]
+#     if (!is.atomic(validate)) res <- rbind(res, acc(yobs = yobs, ypred = ypred, typeoftrait = typeoftrait))
+#     yo <- c(yo, yobs)
+#     yp <- c(yp, ypred)
+#     }
+#     colnames(ghatv) <- names(G)
+#     ghat[[i]] <- ghatv
+#   }
+# 
+#   if (is.atomic(validate)) res <- matrix(acc(yobs = yo, ypred = yp, typeoftrait = typeoftrait), nrow = 1)
+#   # if(is.atomic(validate)) res <- matrix(qcpred(yobs=yo,ypred=yp,typeoftrait=typeoftrait),nrow=1)
+#   res <- as.data.frame(res)
+#   names(res) <- c("Corr", "R2", "Nagel R2", "AUC", "intercept", "slope", "MSPE")
+#   if (is.null(names(G))) names(G) <- paste("G", 1:(np - 1), sep = "")
+#   colnames(theta) <- c(names(G), "E")
+#   theta <- as.data.frame(round(theta, 3))
+#   if (makeplots) {
+#     layout(matrix(1:4, ncol = 2))
+#     boxplot(res$Corr, main = "Predictive Ability", ylab = "Correlation")
+#     boxplot(res$MSPE, main = "Prediction Error", ylab = "MSPE")
+#     boxplot(theta, main = "Estimates", ylab = "Variance")
+#     plot(y = yo, x = yp, xlab = "Predicted", ylab = "Observed")
+#     coef <- lm(yo ~ yp)$coef
+#     abline(a = coef[1], b = coef[2], lwd = 2, col = 2, lty = 2)
+#   }
+#   return(list(accuracy = res, theta = theta, yobs = yo, ypred = yp, ghat=ghat))
+# }
 
 
 ####################################################################################################################
@@ -399,6 +520,7 @@ remlf <- function(y = NULL, X = NULL, GRMlist = NULL, G = NULL, theta = NULL, id
 #' @param ids vector of ids for which BLUP values is computed
 #' @param idsRWS vector of row ids in GRM for which BLUP values is computed
 #' @param idsCLS vector of column ids in GRM for which BLUP values is computed
+#' @keywords internal
 
 #' @export
 #'

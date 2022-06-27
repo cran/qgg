@@ -29,3 +29,4 @@ getGRM(
 \description{
 Extract elements from genomic relationship matrix (GRM) (whole or subset) stored on disk.
 }
+\keyword{internal}

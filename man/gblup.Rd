@@ -29,3 +29,4 @@ gblup(
 \description{
 Compute Genomic BLUP values based on linear mixed model fit output from greml
 }
+\keyword{internal}

@@ -16,7 +16,7 @@
 #' test statistics consult doi:10.1534/genetics.116.189498.
 #'
 #' The sum test is based on the sum of all marker summary statistics located within the feature set. The single marker
-#' summary statistics can be obtained from linear model analyses (from PLINK or using the qgg lma approximation),
+#' summary statistics can be obtained from linear model analyses (from PLINK or using the qgg glma approximation),
 #' or from single or multiple component REML analyses (GBLUP or GFBLUP) from the greml function. The sum test is powerful
 #' if the genomic feature harbors many genetic markers that have small to moderate effects.
 #'
@@ -70,18 +70,22 @@
 #'  X <- model.matrix(fm, data = data)
 #'
 #'  # Single marker association analyses
-#'  ma <- lma(y=y,X=X,W=W)
+#'  stat <- glma(y=y,X=X,W=W)
 #'
 #'  # Create marker sets
 #'  f <- factor(rep(1:100,each=10), levels=1:100)
 #'  sets <- split(as.character(1:1000),f=f)
 #'
 #'  # Set test based on sums
-#'  mma <- gsea(stat = ma[,"stat"]**2, sets = sets, method = "sum", nperm = 10000)
+#'  b2 <- stat[,"stat"]**2
+#'  names(b2) <- rownames(stat)
+#'  mma <- gsea(stat = b2, sets = sets, method = "sum", nperm = 100)
 #'  head(mma)
 #'
 #'  # Set test based on hyperG
-#'  mma <- gsea(stat = ma[,"p"], sets = sets, method = "hyperg", threshold = 0.05)
+#'  p <- stat[,"p"]
+#'  names(p) <- rownames(stat)
+#'  mma <- gsea(stat = p, sets = sets, method = "hyperg", threshold = 0.05)
 #'  head(mma)
 #'
 #' \donttest{
@@ -101,8 +105,13 @@
 
 #' @export
 gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g = NULL, e = NULL, threshold = 0.05, method = "sum", nperm = 1000, ncores = 1) {
+  if(is.data.frame(stat)) {
+    colstat <- !colnames(stat)%in%c("rsids","chr","pos","a1","a2","af")
+    if(any(colstat)) stat <- as.matrix(stat[,colstat])**2
+    if(!any(colstat)) stat <- as.matrix(stat[,colstat])
+  }
   if (method == "sum") {
-    m <- length(stat)
+    #m <- length(stat)
     if (is.matrix(stat)) sets <- mapSets(sets = sets, rsids = rownames(stat), index = TRUE)
     if (is.vector(stat)) sets <- mapSets(sets = sets, rsids = names(stat), index = TRUE)
     nsets <- length(sets)
@@ -152,7 +161,7 @@ gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g
   if (method == "score") {
     if (!is.null(W)) res <- scoretest(e = fit$e, W = W, sets = sets, nperm = nperm)
     if (!is.null(Glist)) {
-      sets <- mapSets(sets = sets, rsids = Glist$rsids, index = TRUE)
+        sets <- mapSets(sets = sets, rsids = Glist$rsids, index = TRUE)
       nsets <- length(sets)
       msets <- sapply(sets, length)
       ids <- fit$ids
@@ -174,7 +183,6 @@ gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g
 }
 
 
-
 gsets <- function(stat = NULL, sets = NULL, ncores = 1, np = 1000, method = "sum") {
   m <- length(stat)
   nsets <- length(sets)
@@ -182,26 +190,20 @@ gsets <- function(stat = NULL, sets = NULL, ncores = 1, np = 1000, method = "sum
   setstat <- sapply(sets, function(x) {
     sum(stat[x])
   })
+  p <- .Call("_qgg_psets", msets = msets,
+              setstat = setstat,
+              stat = stat,
+              np = np)
+  p <- p/np 
 
-  res <- .Fortran("psets",
-    m = as.integer(m),
-    stat = as.double(stat),
-    nsets = as.integer(nsets),
-    setstat = as.double(setstat),
-    msets = as.integer(msets),
-    p = as.integer(rep(0, nsets)),
-    np = as.integer(np),
-    ncores = as.integer(ncores),
-    PACKAGE = "qgg"
-  )
-
-  p <- res$p / np
+  return(p)
 }
 
 
 mapSets <- function(sets = NULL, rsids = NULL, Glist = NULL, index = TRUE) {
   if (!is.null(Glist)) rsids <- unlist(Glist$rsids)
   nsets <- sapply(sets, length)
+  if(is.null(names(sets))) names(sets) <- paste0("Set",1:length(sets))
   rs <- rep(names(sets), times = nsets)
   rsSets <- unlist(sets, use.names = FALSE)
   rsSets <- match(rsSets, rsids)
@@ -235,21 +237,11 @@ gstat <- function(method = NULL, Glist = NULL, g = NULL, Sg = NULL, Py = NULL, e
   for (j in 1:nsets) {
     nc <- length(cls[[j]])
     direction <- rep(1, nc)
-    W <- .Fortran("readbed",
-      n = as.integer(n),
-      nr = as.integer(nr),
-      rws = as.integer(rws),
-      nc = as.integer(nc),
-      cls = as.integer(cls[[j]]),
-      impute = as.integer(impute),
-      scale = as.integer(scale),
-      direction = as.integer(direction),
-      W = matrix(as.double(0), nrow = nr, ncol = nc),
-      nbytes = as.integer(nbytes),
-      fnRAWCHAR = as.integer(unlist(sapply(as.character(fnRAW),charToRaw),use.names=FALSE)),
-      nchars = nchar(as.character(fnRAW)),
-      PACKAGE = "qgg"
-    )$W
+
+# Check this again - should be getW using a bedfile
+      W <- getW(Glist = Glist, rws = rws, cls = cls, scale = scale)
+# End check this again
+
     if (method == "cvat") {
       s <- crossprod(W / nc, Py) * Sg
       Ws <- t(t(W) * as.vector(s))
@@ -262,69 +254,6 @@ gstat <- function(method = NULL, Glist = NULL, g = NULL, Sg = NULL, Py = NULL, e
     message(paste("Finished block", j, "out of", nsets, "blocks"))
   }
   return(setstat)
-}
-
-
-#' LD pruning of summary statistics
-#'
-#' @description
-#' Perform LD pruning of summary statistics before they are used in gene set enrichment analyses.
-#' @param stat vector or matrix of single marker statistics (e.g. coefficients, t-statistics, p-values)
-#' @param statistics is the type of statistics used in stat (e.g. statistics="p-value")
-#' @param ldSets list of marker sets - names corresponds to row names in stat
-#' @param r2 threshold for r2 used in LD pruning
-#' @param threshold p-value threshold used in LD pruning
-#' @param Glist list providing information about genotypes stored on disk
-#' @param method used including method="pruning" which is default or "clumping"
-
-
-#' @export
-
-adjLD <- function(stat = NULL, statistics = "p-value", Glist = NULL, r2 = 0.9, ldSets = NULL, threshold = 1,
-                  method = "pruning") {
-  rsidsStat <- rownames(stat)
-  if (statistics == "p-value") pstat <- stat[, "p"]
-  pstat <- as.matrix(pstat)
-  rownames(pstat) <- rsidsStat
-  colnames(pstat) <- "p"
-  if (method %in% c("pruning", "clumping")) {
-    if (!is.null(ldSets)) nchr <- length(ldSets)
-    if (!is.null(Glist)) nchr <- Glist$nchr
-    for (i in 1:ncol(pstat)) {
-      m <- length(rsidsStat)
-      indx1 <- rep(T, m)
-      indx2 <- rep(F, m)
-      for (chr in 1:nchr) {
-        if (!is.null(Glist)) {
-          setsChr <- getLDsets(Glist = Glist, r2 = r2, chr = chr)
-          setsChr <- mapSets(sets = setsChr, rsids = rsidsStat)
-        }
-        if (!is.null(ldSets)) setsChr <- ldSets[[chr]]
-        rsidsChr <- names(setsChr)
-        rwsChr <- match(rsidsChr, rsidsStat)
-        p <- pstat[rwsChr, i]
-        o <- order(p, decreasing = FALSE)
-        for (j in o) {
-          if (p[j] <= threshold) {
-            if (indx1[rwsChr[j]]) {
-              rws <- setsChr[[j]]
-              indx1[rws] <- F
-              indx2[rwsChr[j]] <- T
-            }
-          }
-        }
-        message(paste("Finished pruning chromosome:", chr, "for stat column:", colnames(pstat)[i]))
-      }
-      if (method == "clumping") {
-        pstat[indx1, i] <- 0
-        p <- pstat[, i]
-        pstat[p > threshold, i] <- 0
-      }
-      if (method == "pruning") pstat[!indx2, i] <- 0
-    }
-  }
-  stat <- stat[!rowSums(pstat == 0) == ncol(pstat), ]
-  return(stat)
 }
 
 

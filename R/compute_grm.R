@@ -26,7 +26,9 @@
 #' @param overwrite logical if TRUE the binary file fnG will be overwritten
 #' @param returnGRM logical if TRUE function returns the GRM matrix to the R environment
 #' @param task either computation of GRM (task="grm"  which is default) or eigenvalue decomposition of GRM (task="eigen")
-#' @param miss the missing code (miss=0 is default) used for missing values in the genotype data
+#' @param miss the missing code (miss=NA is default) used for missing values in the genotype data
+#' @param impute if missing values in the genotype matrix W then mean impute
+#' @param pedigree is a dataframe with pedigree information
 #'
 #'
 #' @return Returns a genomic relationship matrix (GRM) if returnGRM=TRUE else a list structure (GRMlist) with information about the GRM  stored on disk
@@ -53,14 +55,34 @@
 #' @export
 #'
 
+# grm <- function(Glist = NULL, GRMlist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls = NULL,
+#                 W = NULL, method = "add", scale = TRUE, msize = 100, ncores = 1, fnG = NULL,
+#                 overwrite = FALSE, returnGRM = FALSE, miss = NA, task = "grm") {
+#   if (task == "grm") {
+#     GRM <- computeGRM(
+#       Glist = Glist, ids = ids, rsids = rsids, rws = rws, cls = cls,
+#       W = W, method = method, scale = scale, msize = msize, ncores = ncores,
+#       fnG = fnG, overwrite = overwrite, returnGRM = returnGRM, miss = miss
+#     )
+#     return(GRM)
+#   }
+#   if (task == "eigen") {
+#     eig <- eigenGRM(GRM = GRM, GRMlist = GRMlist, method = "default", ncores = ncores)
+#     return(eig)
+#   }
+# }
+
 grm <- function(Glist = NULL, GRMlist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls = NULL,
                 W = NULL, method = "add", scale = TRUE, msize = 100, ncores = 1, fnG = NULL,
-                overwrite = FALSE, returnGRM = FALSE, miss = 0, task = "grm") {
-  if (task == "grm") {
+                overwrite = FALSE, returnGRM = FALSE, miss = NA, impute=TRUE, pedigree=NULL, task = "grm") {
+  if(!is.null(pedigree)) {
+    return(prm(pedigree=pedigree, task="additive"))
+  } 
+  if (task == "grm" & is.null(pedigree)) {
     GRM <- computeGRM(
       Glist = Glist, ids = ids, rsids = rsids, rws = rws, cls = cls,
       W = W, method = method, scale = scale, msize = msize, ncores = ncores,
-      fnG = fnG, overwrite = overwrite, returnGRM = returnGRM, miss = miss
+      fnG = fnG, overwrite = overwrite, returnGRM = returnGRM, miss = miss, impute=impute
     )
     return(GRM)
   }
@@ -70,21 +92,77 @@ grm <- function(Glist = NULL, GRMlist = NULL, ids = NULL, rsids = NULL, rws = NU
   }
 }
 
+prm <- function(pedigree=NULL, task="additive") {
+  n <- nrow(pedigree)
+  A <- matrix(0,ncol=n,nrow=n)
+  rownames(A) <- colnames(A) <- as.character(pedigree[,1])
+  A[1, 1] <- 1
+  for (i in 2:n) {
+    if (pedigree[i,2] == 0 && pedigree[i,3] == 0) {
+      A[i, i] <- 1
+      for (j in 1:(i - 1)) A[j, i] <- A[i, j] <- 0
+    }
+    if (pedigree[i,2] == 0 && pedigree[i,3] != 0) {
+      A[i, i] <- 1
+      for (j in 1:(i - 1)) A[j, i] <- A[i, j] <- 0.5 *
+          (A[j, as.character(pedigree[i,3])])
+    }
+    if (pedigree[i,2] != 0 && pedigree[i,3] == 0) {
+      A[i, i] <- 1
+      for (j in 1:(i - 1)) A[j, i] <- A[i, j] <- 0.5 *
+          (A[j, as.character(pedigree[i,2])])
+    }
+    if (pedigree[i,2] != 0 && pedigree[i,3] != 0) {
+      A[i, i] <- 1 + 0.5 * (A[as.character(pedigree[i,3]), as.character(pedigree[i,2])])
+      for (j in 1:(i - 1)) A[j, i] <- A[i, j] <- 0.5 *
+          (A[j, as.character(pedigree[i,2])] + A[j, as.character(pedigree[i,3])])
+    }
+  }
+  if(task=="dominance"){
+    n <- ncol(A)
+    D <- matrix(0,ncol=n,nrow=n)
+    for(i in 1:n){
+      for(j in 1:n){
+        si <- pedigree[i,2]
+        sj <- pedigree[j,2]
+        di <- pedigree[i,3]
+        dj <- pedigree[j,3]
+        u1 <- ifelse(length(A[si,sj])>0,A[si,sj],0)
+        u2 <- ifelse(length(A[di,dj])>0,A[di,dj],0)
+        u3 <- ifelse(length(A[si,dj])>0,A[si,dj],0)
+        u4 <- ifelse(length(A[sj,di])>0,A[sj,di],0)
+        D[i,j] <- D[j,i] <- 0.25*(u1*u2+u3*u4)
+      }
+    }
+    diag(D)<-1
+    A<-D
+    D<-NULL
+  }
+  return(A)
+}
 
 
 
-computeGRM <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls = NULL, W = NULL, method = "add", scale = TRUE, msize = 100, ncores = 1, fnG = NULL, overwrite = FALSE, returnGRM = FALSE, miss = 0) {
+
+computeGRM <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls = NULL, W = NULL, method = "add", scale = TRUE, msize = 100, ncores = 1, fnG = NULL, overwrite = FALSE, returnGRM = FALSE, miss = NA, impute=TRUE) {
   if (method == "add") gmodel <- 1
   if (method == "dom") gmodel <- 2
   if (method == "epi-pairs") gmodel <- 3
   if (method == "epi-hadamard") gmodel <- 4
 
   if (!is.null(W)) {
-    SS <- tcrossprod(W) # compute crossproduct, all SNPs
-    N <- tcrossprod(!W == miss) # compute number of observations, all SNPs
-    G <- SS / N
+    #SS <- tcrossprod(W) # compute crossproduct, all SNPs
+    #N <- tcrossprod(!W == miss) # compute number of observations, all SNPs
+    #G <- SS / N
+    if(is.na(miss)) missing <- is.na(W)
+    if(is.numeric(miss)) missing <- W == miss
+    W <- scale(W, scale=FALSE)
+    if(any(missing)) W[missing] <- 0
+    N <- tcrossprod(!missing)
+    G <- tcrossprod(W)/N
     return(G)
   }
+  
   if (is.null(W)) {
     n <- Glist$n
     m <- Glist$m
@@ -186,6 +264,7 @@ writeGRM <- function(GRM = NULL) {
 #' @param idsCLS vector of column ids in GRM to be extracted
 #' @param rws vector of rows in GRM to be extracted
 #' @param cls vector of columns in GRM to be extracted
+#' @keywords internal
 
 
 #' @export
@@ -239,6 +318,7 @@ getGRM <- function(GRMlist = NULL, ids = NULL, idsCLS = NULL, idsRWS = NULL, cls
 #' genomic rfelationship matrix stored on disk
 
 #' @param GRMlist list providing information about GRM matrix stored in binary files on disk
+#' @keywords internal
 
 #' @export
 #'

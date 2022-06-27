@@ -19,7 +19,9 @@ grm(
   fnG = NULL,
   overwrite = FALSE,
   returnGRM = FALSE,
-  miss = 0,
+  miss = NA,
+  impute = TRUE,
+  pedigree = NULL,
   task = "grm"
 )
 }
@@ -52,7 +54,11 @@ grm(
 
 \item{returnGRM}{logical if TRUE function returns the GRM matrix to the R environment}
 
-\item{miss}{the missing code (miss=0 is default) used for missing values in the genotype data}
+\item{miss}{the missing code (miss=NA is default) used for missing values in the genotype data}
+
+\item{impute}{if missing values in the genotype matrix W then mean impute}
+
+\item{pedigree}{is a dataframe with pedigree information}
 
 \item{task}{either computation of GRM (task="grm"  which is default) or eigenvalue decomposition of GRM (task="eigen")}
 }

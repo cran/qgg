@@ -1,11 +1,11 @@
 ####################################################################################################################
-#    Module 5: LMM marker association test
+#    Module 1: LMM marker association test
 ####################################################################################################################
 #'
 #' Single marker association analysis using linear models or linear mixed models
 #'
 #' @description
-#' The function lma performs single marker association analysis between genotype markers and the phenotype
+#' The function glma performs single marker association analysis between genotype markers and the phenotype
 #' either based on linear model analysis (LMA) or mixed linear model analysis (MLMA).
 #'
 #' The basic MLMA approach involves 1) building a genetic relationship matrix (GRM) that models genome-wide
@@ -26,7 +26,6 @@
 #' selected based on the global maximum from out-of sample predictive accuracy.
 #'
 #'
-
 #'
 #' @param y vector or matrix of phenotypes
 #' @param X design matrix for factors modeled as fixed effects
@@ -38,18 +37,15 @@
 #' @param statistic single marker test statistic used (currently based on the "mastor" statistics).
 #' @param msize number of genotype markers used for batch processing
 #' @param scale logical if TRUE the genotypes have been scaled to mean zero and variance one
+#' @param verbose is a logical; if TRUE it prints more details during optimization
+#' @param chr chromosome for which summary statistics are computed
 #'
-
 #' @return Returns a dataframe (if number of traits = 1) else a list including
 #' \item{coef}{single marker coefficients}
 #' \item{se}{standard error of coefficients}
 #' \item{stat}{single marker test statistic}
 #' \item{p}{p-value}
-
-
 #' @author Peter Soerensen
-
-
 #' @references Chen, W. M., & Abecasis, G. R. (2007). Family-based association tests for genomewide association scans. The American Journal of Human Genetics, 81(5), 913-926.
 #' @references Loh, P. R., Tucker, G., Bulik-Sullivan, B. K., Vilhjalmsson, B. J., Finucane, H. K., Salem, R. M., ... & Patterson, N. (2015). Efficient Bayesian mixed-model analysis increases association power in large cohorts. Nature genetics, 47(3), 284-290.
 #' @references Kang, H. M., Sul, J. H., Zaitlen, N. A., Kong, S. Y., Freimer, N. B., Sabatti, C., & Eskin, E. (2010). Variance component model to account for sample structure in genome-wide association studies. Nature genetics, 42(4), 348-354.
@@ -61,7 +57,6 @@
 #' @references Svishcheva, G. R., Axenovich, T. I., Belonogova, N. M., van Duijn, C. M., & Aulchenko, Y. S. (2012). Rapid variance components-based method for whole-genome association analysis. Nature genetics, 44(10), 1166-1170.
 #' @references Yang, J., Zaitlen, N. A., Goddard, M. E., Visscher, P. M., & Price, A. L. (2014). Advantages and pitfalls in the application of mixed-model association methods. Nature genetics, 46(2), 100-106.
 #' @references Bulik-Sullivan, B. K., Loh, P. R., Finucane, H. K., Ripke, S., Yang, J., Patterson, N., ... & Schizophrenia Working Group of the Psychiatric Genomics Consortium. (2015). LD Score regression distinguishes confounding from polygenicity in genome-wide association studies. Nature genetics, 47(3), 291-295.
-
 #' @examples
 #'
 #' # Simulate data
@@ -76,9 +71,9 @@
 #' X <- model.matrix(fm, data = data)
 #' 
 #' # Linear model analyses and single marker association test
-#' maLM <- lma(y=y,X=X,W = W)
+#' stat <- glma(y=y,X=X,W = W)
 #'
-#' head(maLM)
+#' head(stat)
 #'
 #' \donttest{
 #' # Compute GRM
@@ -88,19 +83,21 @@
 #' fit <- greml(y = y, X = X, GRM = list(GRM), verbose = TRUE)
 #'
 #' # Single marker association test
-#' maMLM <- lma(fit = fit, W = W)
+#' stat <- glma(fit = fit, W = W)
 #'
-#' head(maMLM)
+#' head(stat)
 #'
 #' }
 #' 
+#' 
+
 #' @export
 #'
-
-lma <- function(y = NULL, X = NULL, W = NULL, Glist = NULL, fit = NULL,
-                statistic = "mastor", ids = NULL, rsids = NULL, msize = 100, scale = TRUE) {
+#' 
+glma <- function(y = NULL, X = NULL, W = NULL, Glist = NULL, chr=NULL,  fit = NULL, verbose=FALSE,
+                 statistic = "mastor", ids = NULL, rsids = NULL, msize = 100, scale = TRUE) {
   if (is.null(fit)) {
-    ma <- sma(y = y, X = X, W = W, Glist = Glist, ids = ids, rsids = rsids, msize = msize, scale = scale)
+    ma <- sma(y = y, X = X, W = W, Glist = Glist, chr=chr, ids = ids, rsids = rsids, msize = msize, scale = scale, verbose=verbose)
     return(ma)
   }
   if (!is.null(fit)) {
@@ -108,7 +105,6 @@ lma <- function(y = NULL, X = NULL, W = NULL, Glist = NULL, fit = NULL,
     return(ma)
   }
 }
-
 
 mlma <- function(y = NULL, X = NULL, fit = NULL, W = NULL, m = NULL, statistic = "mastor") {
   if (is.null(m)) m <- ncol(W)
@@ -120,23 +116,23 @@ mlma <- function(y = NULL, X = NULL, fit = NULL, W = NULL, m = NULL, statistic =
   yVy <- fit$yVy
   trPG <- fit$trPG[1]
   trVG <- fit$trVG[1]
-
+  
   # compute single marker, coefficients, test statistics and p-values
   nW <- colSums(!W == 0)
   WPy <- crossprod(W, Py)
   WVy <- crossprod(W, Vy)
   ww <- colSums(W**2)
-
+  
   if (statistic == "mastor") {
     coef <- (WPy / (trPG / m)) / m
     se <- (1 / (trPG / m)) / m
     stat <- WPy**2 / sum(Py**2)
     p <- pchisq(stat, df = 1, ncp = 0, lower.tail = FALSE)
   }
-
+  
   mma <- data.frame(coef = coef, se = se, stat = stat, p = p)
   rownames(mma) <- colnames(W)
-
+  
   return(as.matrix(mma))
 }
 
@@ -151,7 +147,7 @@ plotma <- function(ma = NULL, chr = NULL, rsids = NULL, thresh = 5) {
   if (is.null(chr)) {
     chr <- rep(1, m)
   }
-
+  
   layout(matrix(1:2, ncol = 1))
   o <- order(mlogObs, decreasing = TRUE)
   mlogExp <- -log10((1:m) / m)
@@ -160,70 +156,130 @@ plotma <- function(ma = NULL, chr = NULL, rsids = NULL, thresh = 5) {
     frame.plot = FALSE, main = "", xlab = "Expected -log10(p)", ylab = "Observed -log10(p)"
   )
   abline(a = 0, b = 1)
-
+  
   colSNP <- "red"
-
+  
   is.even <- function(x) x %% 2 == 0
   colCHR <- rep(gray(0.3), m)
   colCHR[is.even(chr)] <- gray(0.9)
-
-  plot(
-    y = mlogObs, x = 1:m, ylab = "Observed -log10(p)", xlab = "Position", col = colCHR,
-    pch = ".", frame.plot = FALSE
+  
+  plot(y = mlogObs, x = 1:m, ylab = "Observed -log10(p)", xlab = "Position", col = colCHR,
+       pch = ".", frame.plot = FALSE
   )
   points(y = mlogObs[rwsSNP], x = (1:m)[rwsSNP], col = colSNP)
   abline(h = thresh, col = 2, lty = 2)
 }
 
 
-sma <- function(y = NULL, X = NULL, W = NULL, Glist = NULL, ids = NULL, rsids = NULL,
-                msize = 100, scale = TRUE) {
+sma <- function(y = NULL, X = NULL, W = NULL, Glist = NULL, chr=NULL, ids = NULL, rsids = NULL,
+                msize = 100, scale = TRUE, verbose=FALSE) {
+  if (is.list(y)) {
+    if(is.null(names(y))) names(y) <- paste0("T",1:length(y)) 
+    y <- as.matrix(as.data.frame(y))
+  }
+  
   if (is.vector(y)) y <- matrix(y, ncol = 1, dimnames = list(names(y), "trait"))
   ids <- rownames(y)
+  
   nt <- ncol(y)
   if (!is.null(W)) {
     if (any(!ids == rownames(W))) stop("Some names of y does not match rownames of W")
     if (!is.null(X)) y <- residuals(lm(y ~ X))
     if (is.null(X)) y <- residuals(lm(y ~ 1))
-    res <- smlm(y = y, X = X, W = W)
-    if (nt == 1) res <- as.matrix(as.data.frame(res))
+    ma <- smlm(y = y, X = X, W = W)
+    if (nt == 1) ma <- as.data.frame(ma)
   }
   if (!is.null(Glist)) {
     if (any(!ids %in% Glist$ids)) stop("Some names of y does not match names in Glist$ids")
-    if (!is.null(X)) y <- as.matrix(residuals(lm(y ~ X)))
-    if (is.null(X)) y <- as.matrix(residuals(lm(y ~ 1)))
+    if (!is.null(X) && !any(is.na(y))) y <- as.matrix(residuals(lm(y ~ X)))
+    if (!is.null(X) && any(is.na(y))) stop("Need to fix missing data lm")
+    if (is.null(X) && !any(is.na(y))) y <- as.matrix(residuals(lm(y ~ 1)))
+    if (is.null(X)) {y <- apply(y,2,function(x) { 
+      x[!is.na(x)] <- x[!is.na(x)] - mean(x, na.rm=TRUE)
+      x})}
     nt <- ncol(y)
-    m <- Glist$m
-    n <- Glist$n
-    cls <- 1:m
-    #if (!is.null(rsids)) cls <- match(rsids, Glist$rsids)
-    m <- length(cls)
-    rws <- 1:n
-    if (!is.null(ids)) rws <- match(ids, Glist$ids)
-    s <- se <- stat <- p <- matrix(NA, nrow = m, ncol = nt)
-    rownames(s) <- rownames(se) <- rownames(stat) <- rownames(p) <- Glist$rsids
-    colnames(s) <- colnames(se) <- colnames(stat) <- colnames(p) <- colnames(y)
-    if (!is.null(rsids)) cls <- match(rsids, Glist$rsids)
-    sets <- split(cls, ceiling(seq_along(cls) / msize))
-    nsets <- length(sets)
-    for (i in 1:nsets) {
-      cls <- sets[[i]]
-      W <- getW(Glist = Glist, rws = rws, cls = cls, scale = scale)
-      res <- smlm(y = y, X = X, W = W)
-      s[cls, ] <- res[[1]]
-      se[cls, ] <- res[[2]]
-      stat[cls, ] <- res[[3]]
-      p[cls, ] <- res[[4]]
-      message(paste("Finished block", i, "out of", nsets, "blocks"))
+    ma <- vector(length=Glist$nchr,mode="list")
+    if(is.null(chr)) chromosomes <- 1:Glist$nchr
+    if(!is.null(chr)) chromosomes <- chr
+    message("Type of analysis: glma")
+    for (chr in  chromosomes) {
+      message(paste("Processing chromosome:", chr, "out of", Glist$nchr, "chromosomes"))
+      m <- Glist$mchr[chr]
+      cls <- 1:m
+      n <- Glist$n
+      rws <- 1:n
+      if (!is.null(ids)) rws <- match(ids, Glist$ids)
+      s <- se <- stat <- p <- matrix(NA, nrow = m, ncol = nt)
+      dfe <- ww <- wy <- matrix(NA, nrow = m, ncol = nt)
+      rownames(s) <- rownames(se) <- rownames(stat) <- rownames(p) <- Glist$rsids[[chr]]
+      colnames(s) <- colnames(se) <- colnames(stat) <- colnames(p) <- colnames(y)
+      rownames(dfe) <- rownames(ww) <- rownames(wy) <- Glist$rsids[[chr]]
+      colnames(dfe) <- colnames(ww) <- colnames(wy) <- colnames(y)
+      if (!is.null(rsids)) cls <- match(rsids, Glist$rsids[[chr]])
+      rsidsChr <- Glist$rsids[[chr]]
+      if (!is.null(rsids)) {
+        rsidsChr <- rsidsChr[rsidsChr%in%rsids]
+        cls <- match(rsidsChr,Glist$rsids[[chr]])
+      }
+      sets <- split(cls, ceiling(seq_along(cls) / msize))
+      nsets <- length(sets)
+      for (i in 1:nsets) {
+        cls <- sets[[i]]
+        W <- getG(Glist, chr=chr, scale=scale, cls=cls)
+        #W <- getW(Glist = Glist, rws = rws, cls = cls, scale = scale)
+        res <- smlm(y = y, X = X, W = W[rws,])
+        s[cls, ] <- res[[1]]
+        se[cls, ] <- res[[2]]
+        stat[cls, ] <- res[[3]]
+        p[cls, ] <- res[[4]]
+        dfe[cls, ] <- res[[5]]
+        ww[cls, ] <- res[[6]]
+        wy[cls, ] <- res[[7]]
+        if(verbose) message(paste("Finished chromosome segment", i, "out of", nsets))
+      }
+      cls <- unlist(sets)
+      ma[[chr]] <- list(b = s[cls, ], seb = se[cls, ], stat = stat[cls, ], p = p[cls, ],
+                        n = dfe[cls, ], ww = ww[cls, ], wy = wy[cls, ])
+      if (nt == 1) ma[[chr]] <- as.data.frame(ma[[chr]])
     }
-    cls <- unlist(sets)
-    res <- list(coef = s[cls, ], se = se[cls, ], stat = stat[cls, ], p = p[cls, ])
-    if (nt == 1) res <- as.matrix(as.data.frame(res))
+    if (nt == 1) {
+      ma <- do.call(rbind, ma)
+      if(!is.null(Glist)) {
+        rsids <- rownames(ma)
+        ma$rsids <- rsids
+        ma$chr <- unlist(Glist$chr)[rsids]
+        ma$pos <- unlist(Glist$pos)[rsids]
+        ma$a1 <- unlist(Glist$a1)[rsids]
+        ma$a2 <- unlist(Glist$a2)[rsids]
+        ma$af <- unlist(Glist$af)[rsids]
+        ma <- ma[,c(8:13,1:7)]
+        ma <- na.omit(ma)
+      }
+    }
+    if(nt>1) {
+      b <- do.call(rbind, lapply(ma,function(x){x$b}))
+      seb <- do.call(rbind, lapply(ma,function(x){x$seb}))
+      stat <- do.call(rbind, lapply(ma,function(x){x$stat}))
+      p <- do.call(rbind, lapply(ma,function(x){x$p}))
+      n <- do.call(rbind, lapply(ma,function(x){x$n}))
+      ww <- do.call(rbind, lapply(ma,function(x){x$ww}))
+      wy <- do.call(rbind, lapply(ma,function(x){x$wy}))
+      ma <- list(b = b, seb = seb, stat = stat, p = p,
+                 n = n, ww = ww, wy = wy)
+      if(!is.null(Glist)) {
+        rsids <- rownames(ma$b)
+        ma$marker <- data.frame( rsids=rsids, 
+                                 chr=unlist(Glist$chr)[rsids],
+                                 pos=unlist(Glist$pos)[rsids],
+                                 a1=unlist(Glist$a1)[rsids],
+                                 a2=unlist(Glist$a2)[rsids],
+                                 af=unlist(Glist$a2)[rsids])
+      }
+      
+    }
   }
-  return(res)
-}
-
-
+  return(ma)
+  }
 smlm <- function(y = NULL, X = NULL, W = NULL) {
   if (is.vector(y)) y <- matrix(y, ncol = 1)
   nt <- ncol(y)
@@ -245,6 +301,62 @@ smlm <- function(y = NULL, X = NULL, W = NULL) {
   se <- sqrt(sse / dfe) / sqrt(ww)
   tt <- coef / se
   ptt <- 2 * pt(-abs(tt), df = dfe)
-  res <- list(s = coef, se = se, stat = tt, p = ptt)
+  res <- list(b = coef, seb = se, stat = tt, p = ptt, dfe = dfe, ww = ww, wy = Wy)
   return(res)
 }
+
+
+cvs <- function(y=NULL, Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, famfiles = NULL, ids = NULL, rsids = NULL,
+                rws = NULL, cls = NULL, impute = TRUE, scale = TRUE) {
+  
+  if(is.null(cls)) cls <- 1:Glist$mchr[chr]
+  af <- Glist$af[[chr]][cls]
+  ids <- NULL
+  if(is.matrix(y)) ids <- rownames(y)
+  if(is.vector(y)) ids <- names(y)
+  if(is.vector(y)) y <- as.matrix(y)
+  nt <- ncol(y)
+  for (i in 1:ncol(y)) {
+    y[,i] <- y[,i] - mean(y[,i])
+  }
+  if(is.null(ids)) stop("No names/rownames provided for y")
+  if(!is.null(ids)) {
+    if(any(is.na(match(ids,Glist$ids))))  stop("Names/rownames for y does match rownames for W")
+    if(any(is.na(Glist$ids%in%ids)))  stop("Names/rownames for y does match rownames for W")
+  }
+  rws <- match(ids,Glist$ids)
+  if(any(is.na(rws))) stop("Some ids in y does not match individuals in Glist$ids")
+  dfe <- nrow(y)-1
+  ylist <- lapply(1:nt,function(x) {rep(0,Glist$n)})
+  weights <- lapply(1:nt,function(x) {rep(0,Glist$n)})
+  for (i in 1:nt) {
+    ylist[[i]][rws] <- y[,i]
+    weights[[i]][rws] <- 1.0
+  }
+  if(!file.exists(Glist$bedfiles[chr])) stop(paste("Bedfile:", Glist$bedfiles[chr],"does not exist"))
+  covs <- .Call("_qgg_summarybed", 
+                Glist$bedfiles[chr], 
+                n=Glist$n,
+                cls=cls,
+                af=af,
+                weights=weights,
+                y=ylist)
+  
+  res <- vector(length=nt,mode="list")
+  names(res) <- colnames(y)
+  for ( i in 1:nt) {
+    rsids <- Glist$rsids[[chr]][cls]
+    ww <- covs[[1]][[i]]
+    wy <- covs[[2]][[i]]
+    b <- (covs[[2]][[i]]/covs[[1]][[i]])
+    seb <- 1/sqrt(covs[[1]][[i]])
+    tstat <- (covs[[2]][[i]]/covs[[1]][[i]])*sqrt(covs[[1]][[i]])
+    p <- 2 * pt(-abs(tstat), df = dfe - 2)
+    res[[i]] <- data.frame(rsids,ww,wy,b,seb,tstat,p)
+    rownames(res[[i]]) <- rsids
+  }
+  if(nt==1) res <- res[[1]]
+  return(res)
+}
+
+

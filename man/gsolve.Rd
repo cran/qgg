@@ -2,17 +2,19 @@
 % Please edit documentation in R/genomic_solve.R
 \name{gsolve}
 \alias{gsolve}
-\title{Genomic prediction based on a linear mixed model}
+\title{Solve linear mixed model equations}
 \usage{
 gsolve(
   y = NULL,
   X = NULL,
+  GRM = NULL,
+  va = NULL,
+  ve = NULL,
   Glist = NULL,
   W = NULL,
   ids = NULL,
   rsids = NULL,
   sets = NULL,
-  validate = NULL,
   scale = TRUE,
   lambda = NULL,
   weights = FALSE,
@@ -27,7 +29,13 @@ gsolve(
 
 \item{X}{design matrix of fixed effects}
 
-\item{Glist}{list of information about centered and scaled genotype matrix}
+\item{GRM}{genetic relationship matrix}
+
+\item{va}{genetic variance}
+
+\item{ve}{residual variance}
+
+\item{Glist}{list of information about genotype matrix stored on disk}
 
 \item{W}{matrix of centered and scaled genotypes}
 
@@ -37,9 +45,7 @@ gsolve(
 
 \item{sets}{list containing marker sets rsids}
 
-\item{validate}{dataframe or list of individuals used in cross-validation (one column for each set)}
-
-\item{scale}{logical if TRUE the genotypes in Glist has been scaled to mean zero and variance one}
+\item{scale}{logical if TRUE the genotypes in Glist will be scaled to mean zero and variance one}
 
 \item{lambda}{overall shrinkage factor}
 
@@ -47,7 +53,7 @@ gsolve(
 
 \item{maxit}{maximum number of iterations used in the Gauss-Seidel procedure}
 
-\item{tol}{tolerance, i.e. the maximum allowed difference between two consecutive iterations of reml to declare convergence}
+\item{tol}{tolerance, i.e. the maximum allowed difference between two consecutive iterations of the solver to declare convergence}
 
 \item{method}{used in solver (currently only methods="gsru": gauss-seidel with resiudal update)}
 
