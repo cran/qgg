@@ -755,7 +755,8 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
                                               std::vector<std::vector<double>> LDvalues, 
                                               std::vector<std::vector<int>> LDindices, 
                                               std::vector<double> b, 
-                                              std::vector<double> lambda, 
+                                              std::vector<double> lambda,
+                                              std::vector<bool> mask, 
                                               double yy, 
                                               std::vector<double> pi, 
                                               std::vector<double> gamma, 
@@ -773,13 +774,18 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
                                               bool adjustE,
                                               int n, 
                                               int nit,
-                                              int method) {
+                                              int nburn,
+                                              int method,
+                                              int algo,
+                                              int seed) {
   
+  
+    
   // Define local variables
   int m = b.size();
   int nc = pi.size();
   
-  double rhs, lhs, bn, diff;
+  double rhs, lhs, bn, bj, diff;
   double rhs1, lhs1, like0, like1, p0, v0, v1;
   double ssb, sse, ssg, dfb, dfe, dfg, chi2;
   double x_tau, tau, lambda_tau, mu_tau, z, z2, u, vbin;
@@ -793,9 +799,8 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
 
   std::vector<double> r(m),vei(m);
   
-  std::vector<int> mask(m);
   std::vector<double> dm(m),bm(m);
-  std::vector<double> ves(nit),vbs(nit),vgs(nit),pis(nit);
+  std::vector<double> ves(nit+nburn),vbs(nit+nburn),vgs(nit+nburn),pis(nit+nburn);
   
   std::vector<double> x2(m),vadj(m),vbi(m);
   std::vector<int> order(m);
@@ -803,12 +808,9 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
   
   // Initialize variables
   for ( int i = 0; i < m; i++) {
-    mask[i]=1;
-    if(wy[i]==0) mask[i]=0;
     vbi[i]=vb;
     r[i] = wy[i];
     x2[i] = (wy[i]/ww[i])*(wy[i]/ww[i]);
-    if(wy[i]==0.0) mask[i]=0;
   }
   
   std::fill(bm.begin(), bm.end(), 0.0);
@@ -828,19 +830,15 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     vei[i] = vadj[i]*vg + ve;
   }
   
-  // should be added as argument to function
-  //vy=yy/(n-1);
-  //nug=nub;
-  //ssg_prior=((nug-2.0)/nug)*vg;
   // initialize BayesL parameters
   //if (method==3) {
-    dfb = (nub - 2.0)/nub;
-    lambda2 = 2.0*(1.0 - dfb)/(dfb)*n;
-    shape0 = 1.1;
-    rate0 = (shape0 - 1.0) / lambda2;
-    for ( int i = 0; i < m; i++) {
-      lambda[i] = sqrt(lambda2); 
-    }
+  dfb = (nub - 2.0)/nub;
+  lambda2 = 2.0*(1.0 - dfb)/(dfb)*n;
+  shape0 = 1.1;
+  rate0 = (shape0 - 1.0) / lambda2;
+  for ( int i = 0; i < m; i++) {
+    lambda[i] = sqrt(lambda2); 
+  }
   //}
   for ( int i = 0; i < nc; i++) {
     vbscale[i]=gamma[i];
@@ -873,17 +871,18 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
 
   // Start Gibbs sampler
   std::random_device rd;
-  unsigned int local_seed;
-  local_seed = rd();
-  std::mt19937 gen(local_seed);
+  //unsigned int local_seed;
+  //local_seed = rd();
+  //std::mt19937 gen(local_seed);
+  std::mt19937 gen(seed);
   
-  for ( int it = 0; it < nit; it++) {
+  for ( int it = 0; it < nit+nburn; it++) {
     
     // Compute marker effects (BLUP)
     if (method==0) {
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
-        if(!mask[i])   continue;
+        if(mask[i])   continue;
         lhs = ww[i] + vei[i]/vb;
         rhs = r[i] + ww[i]*b[i];
         bn = rhs/lhs;
@@ -899,7 +898,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     if (method==1) {
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
-        if(!mask[i])   continue;
+        if(mask[i])   continue;
         lhs = ww[i] + vei[i]/vb;
         rhs = r[i] + ww[i]*b[i];
         std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
@@ -917,7 +916,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
       dfb = 1.0 + nub;
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
-        if(!mask[i])   continue;
+        if(mask[i])   continue;
         ssb = b[i]*b[i];
         std::chi_squared_distribution<double> rchisq(dfb);
         chi2 = rchisq(gen);
@@ -939,7 +938,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
       dfb = 1.0 + nub;
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
-        if(!mask[i])   continue;
+        if(mask[i])   continue;
         lhs = ww[i] + vei[i]/vbi[i];
         rhs = r[i] + ww[i]*b[i];
         std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
@@ -998,6 +997,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     if (method==4) {
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
+        if(mask[i])   continue;
         // version 1
         //rhs0 = 0.0;
         //rhs1 = r[i] + ww[i]*b[i];
@@ -1023,6 +1023,9 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
           lhs1 = ww[i] + vei[i]/vb;
           std::normal_distribution<double> rnorm(rhs1/lhs1, sqrt(vei[i]/lhs1));
           bn = rnorm(gen);
+          if(algo==2 && it<nburn) {
+            bn = (1.0-p0)*bn;
+          }
         } 
         diff = (bn-b[i]);
         if(diff!=0.0) {
@@ -1047,8 +1050,8 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
         pi[1] = rg/(double)m;
         pi[0] = 1.0 - pi[1];
         pis[it] = pi[1];
-        pim[0] = pim[0] + pi[0];
-        pim[1] = pim[1] + pi[1];
+        if(it>nburn) pim[0] = pim[0] + pi[0];
+        if(it>nburn) pim[1] = pim[1] + pi[1];
       }
       
     }
@@ -1058,7 +1061,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
       
       for ( int isort = 0; isort < m; isort++) {
         int i = order[isort];
-        if(!mask[i])   continue;
+        if(mask[i])   continue;
         // variance class likelihood 
         rhs = r[i] + ww[i]*b[i];
         v0 = ww[i]*vei[i];
@@ -1096,6 +1099,16 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
           lhs =ww[i]+vei[i]/vbc;
           std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
           bn = rnorm(gen);
+          if(algo==2 && it<nburn) {
+          bn=0.0;
+          for (size_t j = 1; j < gamma.size(); j++) {
+            vbc = vb * gamma[j];
+            lhs =ww[i]+vei[i]/vbc;
+            std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
+            bj = rnorm(gen);
+            bn += probc[j]*bj;
+          }
+          }
         }
         diff = (bn-b[i]);
         if(diff!=0.0) {
@@ -1121,8 +1134,9 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
         }
         for (int j = 0; j<nc ; j++) {
           pi[j] = pi[j]/pisum;
-          pim[j] = pim[j] + pi[j];
+          if(it>nburn) pim[j] = pim[j] + pi[j];
         }
+        pis[it] = 1.0 - pi[0];
       }
     }
     
@@ -1132,29 +1146,29 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     dfb = 0.0;
     if (method<4) {
       for ( int i = 0; i < m; i++) {
-        bm[i] = bm[i] + b[i];
+        if(it>nburn) bm[i] = bm[i] + b[i];
         ssb = ssb + b[i]*b[i];
         dfb = dfb + 1.0;
-        dm[i] = dm[i] + 1.0;
+        if(it>nburn) dm[i] = dm[i] + 1.0;
       }
     }
     if (method==4) {
       for ( int i = 0; i < m; i++) {
-        bm[i] = bm[i] + b[i];
+        if(it>nburn) bm[i] = bm[i] + b[i];
         if(d[i]==1)   {
           ssb = ssb + b[i]*b[i];
           dfb = dfb + 1.0;
-          dm[i] = dm[i] + 1.0;
+          if(it>nburn) dm[i] = dm[i] + 1.0;
         }
       }
     }
     if (method==5) {
       for ( int i = 0; i < m; i++) {
-        bm[i] = bm[i] + b[i];
+        if(it>nburn) bm[i] = bm[i] + b[i];
         if(d[i]>0)   {
           ssb = ssb + (b[i]*b[i])/gamma[d[i]];
           dfb = dfb + 1.0;
-          dm[i] = dm[i] + (double)d[i];
+          if(it>nburn) dm[i] = dm[i] + (double)d[i];
         }
       }
     }
@@ -1171,6 +1185,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     if(updateE) {
       sse = 0.0;
       for ( int i = 0; i < m; i++) {
+        if(mask[i])   continue;
         sse = sse + b[i] * (r[i] + wy[i]);
       }
       dfe = (double)n + nue;
@@ -1188,6 +1203,7 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     // Sample genetic variance
     ssg = 0.0;
     for ( int i = 0; i < m; i++) {
+      if(mask[i])   continue;
       ssg = ssg + b[i] * (wy[i] -  r[i]);
     }
     //dfg = (double)n + nug;
@@ -1210,12 +1226,12 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
   std::vector<std::vector<double>> result(11);
   result[0].resize(m);
   result[1].resize(m);
-  result[2].resize(nit);
-  result[3].resize(nit);
-  result[4].resize(nit);
-  result[5].resize(nit);
-  result[6].resize(nc);
-  result[7].resize(m);
+  result[2].resize(nit+nburn);
+  result[3].resize(nit+nburn);
+  result[4].resize(nit+nburn);
+  result[5].resize(nit+nburn);
+  result[6].resize(nit+nburn);
+  result[7].resize(nc);
   result[8].resize(m);
   result[9].resize(m);
   result[10].resize(3);
@@ -1224,27 +1240,406 @@ std::vector<std::vector<double>>  sbayes_spa( std::vector<double> wy,
     result[0][i] = bm[i]/nit;
     result[1][i] = dm[i]/nit;
   }
-  for (int i=0; i < nit; i++) {
+  for (int i=0; i < nit+nburn; i++) {
     //result[2][i] = mus[i];
     result[2][i] = 0.0;
     result[3][i] = vbs[i];
     result[4][i] = vgs[i];
     result[5][i] = ves[i];
+    result[6][i] = pis[i];
   }
   for (int j=0; j < nc; j++) {
-    result[6][j] = pim[j]/nit;
+    result[7][j] = pim[j]/nit;
   }  
   
   for (int i=0; i < m; i++) {
-    result[7][i] = r[i];
-    result[8][i] = b[i];
-    result[9][i] = d[i];
+    result[8][i] = r[i];
+    result[9][i] = b[i];
+    //result[9][i] = d[i];
   }
   result[10][0] = vb;
   result[10][1] = ve;
   result[10][2] = pi[0];
 
   
+  return result;
+}
+
+
+// [[Rcpp::export]]
+std::vector<std::vector<double>>  sbayes_reg( std::vector<double> wy,
+                                              std::vector<double> ww, 
+                                              std::vector<std::vector<double>> LDvalues, 
+                                              std::vector<std::vector<int>> LDindices, 
+                                              std::vector<double> b, 
+                                              std::vector<double> lambda, 
+                                              std::vector<bool> mask, 
+                                              double yy, 
+                                              std::vector<double> pi, 
+                                              std::vector<double> gamma, 
+                                              double vg, 
+                                              double vb, 
+                                              double ve,
+                                              double ssb_prior,
+                                              double sse_prior,
+                                              double nub,
+                                              double nue,
+                                              bool updateB,
+                                              bool updateE,
+                                              bool updatePi,
+                                              bool updateG,
+                                              bool adjustE,
+                                              int n, 
+                                              int nit,
+                                              int nburn,
+                                              int method,
+                                              int algo) {
+  
+  // Define local variables
+  int m = b.size();
+  int nc = pi.size();
+  
+  double rhs, lhs, bn, bj, diff;
+  double rhs1, lhs1, like0, like1, p0, v0, v1;
+  double ssb, sse, ssg, dfb, dfe, dfg, chi2;
+  //double x_tau, tau, lambda_tau, mu_tau, z, z2, u, vbin;
+  //double shape, shape0, rate, rate0, lambda2;
+  double u, lambda2;
+  
+  std::vector<double> vbscale(nc), probc(nc), logLc(nc), pim(nc);
+  double cumprobc, vbc, logLcAdj;
+  
+  std::vector<int> d(m), order(m);
+  std::vector<double> r(m),vei(m);
+  std::vector<double> dm(m),bm(m);
+  std::vector<double> x2(m),vadj(m),vbi(m);
+
+  std::vector<double> ves(nit+nburn),vbs(nit+nburn),vgs(nit+nburn),pis(nit+nburn);
+  std::vector<std::vector<double>> bs(nit+nburn, std::vector<double>(m, 0.0));  
+  std::vector<std::vector<int>> ds(nit+nburn, std::vector<int>(m, 0));  
+  
+  // Initialize variables
+  for ( int i = 0; i < m; i++) {
+    vbi[i]=vb;
+    r[i] = wy[i];
+    x2[i] = (wy[i]/ww[i])*(wy[i]/ww[i]);
+  }
+  
+  std::fill(bm.begin(), bm.end(), 0.0);
+  std::fill(dm.begin(), dm.end(), 0.0);
+  std::fill(vbs.begin(), vbs.end(), 0.0);
+  std::fill(vgs.begin(), vgs.end(), 0.0);
+  std::fill(ves.begin(), ves.end(), 0.0);
+  std::fill(pis.begin(), pis.end(), 0.0);
+  std::fill(pim.begin(), pim.end(), 0.0);
+  
+  // adjust sparseld
+  for ( int i = 0; i < m; i++) {
+    vadj[i] = 0.0;
+    if(adjustE) {
+      vadj[i] = ((double)m-(double)LDindices[i].size())/(double)m;
+    }  
+    vei[i] = vadj[i]*vg + ve;
+  }
+  
+  // initialize BayesL parameters
+  dfb = (nub - 2.0)/nub;
+  lambda2 = 2.0*(1.0 - dfb)/(dfb)*n;
+  //shape0 = 1.1;
+  //rate0 = (shape0 - 1.0) / lambda2;
+  for ( int i = 0; i < m; i++) {
+    lambda[i] = sqrt(lambda2); 
+  }
+  for ( int i = 0; i < nc; i++) {
+    vbscale[i]=gamma[i];
+  }
+  
+  // Establish order of markers as they are entered into the model
+  std::iota(order.begin(), order.end(), 0);
+  std::sort(  std::begin(order), 
+              std::end(order),
+              [&](int i1, int i2) { return x2[i1] > x2[i2]; } );
+  
+  // Adjust LD values
+  for ( int i = 0; i < m; i++) {
+    for (size_t j = 0; j < LDindices[i].size(); j++) {
+      LDvalues[i][j] = LDvalues[i][j]*std::sqrt(ww[i])*std::sqrt(ww[LDindices[i][j]]);
+    }
+  }
+  
+  // Start Gibbs sampler
+  std::random_device rd;
+  unsigned int local_seed;
+  local_seed = rd();
+  std::mt19937 gen(local_seed);
+  
+  
+  for ( int it = 0; it < nit+nburn; it++) {
+    
+    // Sample marker effects (BayesC)
+    if (method==4) {
+      for ( int isort = 0; isort < m; isort++) {
+        int i = order[isort];
+        if(mask[i])   continue;
+        rhs = r[i] + ww[i]*b[i];
+        v0 = ww[i]*vei[i];
+        v1 = ww[i]*vei[i] + ww[i]*ww[i]*vb;
+        like0 = -0.5*std::log(v0) -0.5*((rhs*rhs)/v0) + std::log(pi[0]);
+        like1 = -0.5*std::log(v1) -0.5*((rhs*rhs)/v1) + std::log(pi[1]);
+        p0 = 1.0/(std::exp(like1 - like0) + 1.0);
+        d[i]=0;
+        std::uniform_real_distribution<double> runif(0.0, 1.0);
+        u = runif(gen);
+        if(u>p0) d[i]=1;
+        bn=0.0;
+        if(d[i]==1) {
+          rhs1 = r[i] + ww[i]*b[i];
+          lhs1 = ww[i] + vei[i]/vb;
+          std::normal_distribution<double> rnorm(rhs1/lhs1, sqrt(vei[i]/lhs1));
+          bn = rnorm(gen);
+          if(algo==2 && it<nburn ) {
+            bn = (1.0-p0)*bn;
+          }
+        } 
+        diff = (bn-b[i]);
+        if(diff!=0.0) {
+          for (size_t j = 0; j < LDindices[i].size(); j++) {
+            r[LDindices[i][j]] += -LDvalues[i][j]*diff;
+          }
+        }
+        b[i] = bn;
+      }
+      
+      // Sample pi for Bayes C
+      if(updatePi) {
+        dfb=0.0;
+        for (int i = 0; i<m ; i++) {
+          if(d[i]==1)   {
+            dfb = dfb + 1.0;
+          }
+        }
+        double count = dfb + 1.0;
+        std::gamma_distribution<double> rgamma(count,1.0);
+        double rg = rgamma(gen);
+        pi[1] = rg/(double)m;
+        pi[0] = 1.0 - pi[1];
+        pis[it] = pi[1];
+        if(it>nburn) pim[0] = pim[0] + pi[0];
+        if(it>nburn) pim[1] = pim[1] + pi[1];
+      }
+      
+    }
+    
+    // Sample marker effects (BayesR)
+    if (method==5) {
+      for ( int isort = 0; isort < m; isort++) {
+        int i = order[isort];
+        if(mask[i])   continue;
+        // variance class likelihood 
+        rhs = r[i] + ww[i]*b[i];
+        v0 = ww[i]*vei[i];
+        logLc[0] = -0.5*std::log(v0) -0.5*((rhs*rhs)/v0) + std::log(pi[0]);
+        for (int j = 1; j<nc ; j++) {
+          vbc = vb * gamma[j];
+          v1 = ww[i]*vei[i] + ww[i]*ww[i]*vbc;
+          logLc[j] = -0.5*std::log(v1) -0.5*((rhs*rhs)/v1) + std::log(pi[j]); 
+        }
+        // variance class probability 
+        std::fill(probc.begin(), probc.end(), 0.0);
+        for (int j = 0; j<nc ; j++) {
+          logLcAdj = 0.0;
+          for (int k = 0; k<nc ; k++) {
+            logLcAdj += std::exp(logLc[k] - logLc[j]);
+          }
+          probc[j] = 1.0/logLcAdj;
+        }
+        // sample variance class indicator
+        std::uniform_real_distribution<double> runif(0.0, 1.0);
+        u = runif(gen);
+        d[i]=0;
+        cumprobc = 0.0;
+        for (int j = 0; j<nc ; j++) {
+          cumprobc += probc[j];
+          if(u < cumprobc){
+            d[i] = j;
+            break;
+          }
+        }
+        // sample marker effect
+        bn=0.0;
+        if(d[i]>0) {
+          vbc = vb * gamma[d[i]];
+          lhs =ww[i]+vei[i]/vbc;
+          std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
+          bn = rnorm(gen);
+          if(algo==2 && it<nburn) {
+            bn=0.0;
+            for (size_t j = 1; j < gamma.size(); j++) {
+              vbc = vb * gamma[j];
+              lhs =ww[i]+vei[i]/vbc;
+              std::normal_distribution<double> rnorm(rhs/lhs, sqrt(vei[i]/lhs));
+              bj = rnorm(gen);
+              bn += probc[j]*bj;
+            }
+          }
+        }
+        diff = (bn-b[i]);
+        if(diff!=0.0) {
+          for (size_t j = 0; j < LDindices[i].size(); j++) {
+            r[LDindices[i][j]] += -LDvalues[i][j]*diff;
+          }
+        }
+        b[i] = bn;
+      }
+      // Sample pi for Bayes R
+      if(updatePi) {
+        std::vector<double> mc(nc);
+        std::fill(mc.begin(), mc.end(), 0.0);
+        for (int i = 0; i<m ; i++) {
+          mc[d[i]] = mc[d[i]] + 1.0;
+        }
+        double pisum=0.0;
+        for (int j = 0; j<nc ; j++) {
+          std::gamma_distribution<double> rgamma(mc[j]+1.0,1.0);
+          double rg = rgamma(gen);
+          pi[j] = rg/m;
+          pisum = pisum + pi[j];
+        }
+        for (int j = 0; j<nc ; j++) {
+          pi[j] = pi[j]/pisum;
+          if(it>nburn) pim[j] = pim[j] + pi[j];
+        }
+        pis[it] = 1.0 - pi[0];
+      }
+    }
+    
+    // Sample marker variance
+    ssb = 0.0;
+    dfb = 0.0;
+    if (method<4) {
+      for ( int i = 0; i < m; i++) {
+        if(it>nburn) bm[i] = bm[i] + b[i];
+        ssb = ssb + b[i]*b[i];
+        dfb = dfb + 1.0;
+        if(it>nburn) dm[i] = dm[i] + 1.0;
+      }
+    }
+    if (method==4) {
+      for ( int i = 0; i < m; i++) {
+        if(it>nburn) bm[i] = bm[i] + b[i];
+        if(d[i]==1)   {
+          ssb = ssb + b[i]*b[i];
+          dfb = dfb + 1.0;
+          if(it>nburn) dm[i] = dm[i] + 1.0;
+        }
+      }
+    }
+    if (method==5) {
+      for ( int i = 0; i < m; i++) {
+        if(it>nburn) bm[i] = bm[i] + b[i];
+        if(d[i]>0)   {
+          ssb = ssb + (b[i]*b[i])/gamma[d[i]];
+          dfb = dfb + 1.0;
+          if(it>nburn) dm[i] = dm[i] + 1.0;
+        }
+      }
+    }
+    
+    // marker variance
+    std::chi_squared_distribution<double> rchisq(dfb+nub);
+    chi2 = rchisq(gen);
+    vbs[it] = (ssb + ssb_prior*nub)/chi2 ;
+    if(updateB) {
+      vb = vbs[it]; 
+    }
+
+    // Sample residual variance
+    if(updateE) {
+      sse = 0.0;
+      for ( int i = 0; i < m; i++) {
+        sse = sse + b[i] * (r[i] + wy[i]);
+      }
+      dfe = (double)n + nue;
+      sse = yy - sse;
+      std::chi_squared_distribution<double> rchisq(dfe);
+      chi2 = rchisq(gen);
+      ve = (sse + sse_prior*nue)/chi2 ;
+      for ( int i = 0; i < m; i++) {
+        vei[i] = vadj[i]*vg + ve;
+      }
+      ves[it] = ve;
+    }
+    
+    
+    // Update genetic variance
+    ssg = 0.0;
+    for ( int i = 0; i < m; i++) {
+      ssg = ssg + b[i] * (wy[i] -  r[i]);
+    }
+    dfg = (double)n;
+    vgs[it] = ssg/dfg;
+    if(updateG) {
+      vg = ssg/dfg;
+    }
+    if(adjustE) {
+      for ( int i = 0; i < m; i++) {
+        vei[i] = vadj[i]*vg + ve;
+      }
+    }
+    
+    for ( int i = 0; i < m; i++) {
+      bs[it][i] = b[i];
+      ds[it][i] = d[i];
+    }
+  }
+  
+  // Summarize results
+  std::vector<std::vector<double>> result(13);
+  
+  result[0].resize(m);
+  result[1].resize(m);
+  result[2].resize(nit+nburn);
+  result[3].resize(nit+nburn);
+  result[4].resize(nit+nburn);
+  result[5].resize(nit+nburn);
+  result[6].resize(nit+nburn);
+  result[7].resize(nc);
+  result[8].resize(m);
+  result[9].resize(m);
+  result[10].resize(3);
+  result[11].resize((nit+nburn)*m);
+  result[12].resize((nit+nburn)*m);
+  for (int i=0; i < m; i++) {
+    result[0][i] = bm[i]/nit;
+    result[1][i] = dm[i]/nit;
+  }
+  for (int i=0; i < nit+nburn; i++) {
+    //result[2][i] = mus[i];
+    result[2][i] = 0.0;
+    result[3][i] = vbs[i];
+    result[4][i] = vgs[i];
+    result[5][i] = ves[i];
+    result[6][i] = pis[i];
+  }
+  for (int j=0; j < nc; j++) {
+    result[7][j] = pim[j]/nit;
+  }  
+  
+  for (int i=0; i < m; i++) {
+    result[8][i] = r[i];
+    result[9][i] = b[i];
+    //result[9][i] = d[i];
+  }
+  result[10][0] = vb;
+  result[10][1] = ve;
+  result[10][2] = pi[0];
+
+  for ( int it = 0; it < nit+nburn; it++) {
+    for ( int i = 0; i < m; i++) {
+      result[11][it*m + i] = bs[it][i];
+      result[12][it*m + i] = (double)ds[it][i];
+    }
+  }
   return result;
 }
 

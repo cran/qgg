@@ -1,27 +1,28 @@
 ####################################################################################################################
 #    Module 6: Genomic Scoring
 ####################################################################################################################
-#'
+#' 
 #' Genomic scoring based on single marker summary statistics
 #'
-#' @description
-#' The gscore function is used for genomic predictions based on single marker summary statistics
-#' (coefficients, log-odds ratios, z-scores) and observed genotypes.
+#' Computes genomic predictions using single marker summary statistics and observed genotypes.
 #'
-
-#' @param stat matrix of single marker effects
-#' @param Glist list of information about genotype matrix
-#' @param bedfiles name of the PLINK bed-files
-#' @param famfiles name of the PLINK fam-files
-#' @param bimfiles name of the PLINK bim-files
-#' @param ids vector of individuals used in the analysis
-#' @param scale logical if TRUE the genotype markers have been scale to mean zero and variance one
-#' @param impute logical if TRUE missing genotypes are set to its expected value (2*af where af is allele frequency)
-#' @param msize number of genotype markers used for batch processing
-#' @param ncores number of cores used in the analysis
-#' @param verbose is a logical; if TRUE it prints more details during optimization
-#' @param chr chromosome for which genomic scores is computed
-#' @param fit fit object output from gbayes
+#' @param Glist List of information about genotype matrix. Default is NULL.
+#' @param chr Chromosome for which genomic scores is computed. Default is NULL.
+#' @param bedfiles Names of the PLINK bed-files. Default is NULL.
+#' @param bimfiles Names of the PLINK bim-files. Default is NULL.
+#' @param famfiles Names of the PLINK fam-files. Default is NULL.
+#' @param stat Matrix of single marker effects. Default is NULL.
+#' @param fit Fit object output from gbayes. Default is NULL.
+#' @param ids Vector of individuals used in the analysis. Default is NULL.
+#' @param scaleMarker Logical; if TRUE the genotype markers are scaled to mean zero and variance one. Default is TRUE.
+#' @param scaleGRS Logical; if TRUE the GRS are scaled to mean zero and variance one. Default is TRUE.
+#' @param impute Logical; if TRUE, missing genotypes are set to its expected value (2*af where af is allele frequency). Default is TRUE.
+#' @param msize Number of genotype markers used for batch processing. Default is 100.
+#' @param ncores Number of cores used in the analysis. Default is 1.
+#' @param verbose Logical; if TRUE, more details are printed during optimization. Default is FALSE.
+#' 
+#' @return Returns the genomic scores based on the provided parameters.
+#'
 
 #' @author Peter Soerensen
 
@@ -48,31 +49,32 @@
 #' @export
 #'
 
-gscore <- function(Glist = NULL, chr = NULL, bedfiles=NULL, bimfiles=NULL, famfiles=NULL, stat = NULL, fit = NULL, ids = NULL, scale = TRUE, impute = TRUE, msize = 100, ncores = 1, verbose=FALSE) {
+gscore <- function(Glist = NULL, chr = NULL, bedfiles=NULL, bimfiles=NULL, famfiles=NULL, stat = NULL, fit = NULL, ids = NULL, scaleMarker = TRUE, scaleGRS=TRUE, impute = TRUE, msize = 100, ncores = 1, verbose=FALSE) {
      
      if ( !is.null(Glist))  {
-          prs <- NULL
-          # if(is.null(stat) & !is.null(fit)) {
-          #   rsids <- unlist(Glist$rsids)
-          #   af <- unlist(Glist$af)
-          #   alleles <- unlist(Glist$a1)
-          #   cls <- match(names(fit$bm),rsids)
-          #   if(any(is.na(cls))) stop("Missing rsids")
-          #   stat <- data.frame(rsids=names(fit$bm), alleles=alleles[cls], af=af[cls], effect=fit$b)
-          #   rownames(stat) <- names(fit$bm)
-          # }
           if (!is.null(chr)) chromosomes <- chr
+          #if (is.null(chr)) chromosomes <- unique(stat$chr)
           if (is.null(chr)) chromosomes <- 1:length(Glist$bedfiles)
+          # Output from gbayes
+          cnames <- c("rsids","chr","pos", "ea","nea", "eaf","bm","dm")
+          if(sum(colnames(stat)%in%cnames) == 8) stat <- stat[,1:7]
+          # Output from glma
+          cnames <- c("rsids", "chr", "pos", "ea", "nea", "eaf", 
+                      "b", "seb","stat","p", "n", "ww", "wy")
+          if(sum(colnames(stat)%in%cnames) == 13) stat <- stat[,1:7]
+          prs <- NULL
           for (chr in chromosomes) {
                if( any(stat$rsids %in% Glist$rsids[[chr]]) ) {
                  prschr <- run_gscore(Glist=Glist, chr=chr, stat = stat, 
-                                      ids = ids, scale = scale, ncores = ncores, msize = msize, verbose=verbose)
-                 if (chr==chromosomes[1]) prs <- prschr
-                 if (!chr==chromosomes[1]) prs <- prs + prschr
+                                      ids = ids, scale = scaleMarker, ncores = ncores, msize = msize, verbose=verbose)
+                 if (is.null(prs)) prs <- prschr
+                 if (is.null(prs)) prs <- prs + prschr
+                 #if (chr==chromosomes[1]) prs <- prschr
+                 #if (!chr==chromosomes[1]) prs <- prs + prschr
                  
                }
           }
-          prs <- scale(prs[,1:ncol(prs),drop=FALSE])
+          if(scaleGRS) prs <- scale(prs[,1:ncol(prs),drop=FALSE])
      }
      if ( !is.null(bedfiles))  {
           prs <- run_gscore(bedfiles=bedfiles, bimfiles=bimfiles, famfiles=famfiles, stat = stat, 
@@ -84,8 +86,12 @@ gscore <- function(Glist = NULL, chr = NULL, bedfiles=NULL, bimfiles=NULL, famfi
 
 run_gscore <- function(Glist = NULL, chr=NULL, bedfiles=NULL, bimfiles=NULL, famfiles=NULL, stat = NULL, ids = NULL, scale = NULL, impute = TRUE, msize = 100, ncores = 1, verbose=FALSE) {
      
-     if(sum(is.na(stat))>0) stop("stat object contains NAs") 
-     if(is.null(Glist) & is.null(bedfiles)) stop("Please provide Glist or bedfile")
+     #if(sum(is.na(stat))>0) stop("stat object contains NAs")
+     if(sum(is.na(stat))>0) {
+       warning("stat object contains NAs")
+       stat <- na.omit(stat)
+     }
+     #if(is.null(Glist) & is.null(bedfiles)) stop("Please provide Glist or bedfile")
      
      if (!is.null(bedfiles)) {
           if(!file.exists(bedfiles)) stop(paste("bedfiles does not exists:"),bedfiles) 
@@ -110,7 +116,7 @@ run_gscore <- function(Glist = NULL, chr=NULL, bedfiles=NULL, bimfiles=NULL, fam
           Glist$rsids <- list(as.character(bim[, 2]))
           Glist$a1 <- list(as.character(bim[, 5]))
           Glist$a2 <- list(as.character(bim[, 6]))
-          Glist$position <- list(as.numeric(bim[, 4]))
+          Glist$pos <- list(as.numeric(bim[, 4]))
           Glist$chr <- as.character(bim[, 1])
           message(paste("Finished processing bim file", bimfiles[1]))
           
@@ -121,34 +127,32 @@ run_gscore <- function(Glist = NULL, chr=NULL, bedfiles=NULL, bimfiles=NULL, fam
      
      
      # Prepase summary stat
-     if (!sum(colnames(stat)[1:6] == c("rsids","chr","pos", "a1","a2", "af")) == 6) {
-          stop("First three columns in data frame stat should be: chr, rsids, alleles, af ")
+     if (!sum(colnames(stat)[1:6] == c("rsids","chr","pos", "ea","nea", "eaf")) == 6) {
+       stop("First six columns in data frame stat should be: rsids, chr, pos, ea, nea, eaf")
      }
+       
      rsidsOK <- stat$rsids %in% Glist$rsids[[chr]]
      
      if (any(!rsidsOK)) {
-       #warning("Some variants not found in genotype files")
        message(paste("Number of variants used:", sum(rsidsOK)))
-       #message(paste("Number of variants missing:", sum(!rsidsOK)))
        stat <- stat[rsidsOK, ]
-       #stat$rsids <- as.character(stat$rsids)
-       #stat$a1 <- as.character(stat$a1)
      }
      S <- stat[, -c(1:6),drop=FALSE]
      if (is.vector(S)) S <- as.matrix(S)
-     S <- apply(S, 2, as.numeric)
+     if(sum(rsidsOK>1)) S <- apply(S, 2, as.numeric)
+     if(sum(rsidsOK==1)) t(as.matrix(apply(S, 2, as.numeric)))
      colnames(S) <- colnames(stat)[-c(1:6)]
      rownames(S) <- rownames(stat)
      rsids <- as.character(stat$rsids)
-     af <- stat$af
+     af <- stat$eaf
      
      # Prepare input data for mpgrs
      rws <- 1:Glist$n
      if (!is.null(ids)) rws <- match(ids, Glist$ids)
      cls <- match(rsids, Glist$rsids[[chr]])
-     if(any( !stat$a1 == Glist$a1[[chr]][cls] )) {
-       warning("Some variants appear to be flipped => changing sign of variant effect for those variants ")
-       flipped <- !stat$a1 == Glist$a1[[chr]][cls]
+     if(any( !stat$ea == Glist$a1[[chr]][cls] )) {
+       message("Some variants appear to be flipped => changing sign of variant effect for those variants ")
+       flipped <- !stat$ea == Glist$a1[[chr]][cls]
        S[flipped,] <- -S[flipped,]  
      }
      if(!file.exists(Glist$bedfiles[chr])) stop(paste("bed file does not exists:"),Glist$bedfiles[chr]) 
@@ -159,13 +163,14 @@ run_gscore <- function(Glist = NULL, chr=NULL, bedfiles=NULL, bimfiles=NULL, fam
           message(paste("Processing bed file", Glist$bedfiles[chr]))
           nt <- ncol(S)
           grs <- matrix(0,nrow=nt,ncol=Glist$n)
-          rsids <- splitWithOverlap(rsids,msize,0)
-          nsets <- length(rsids)
+          sets <- splitWithOverlap(1:length(rsids),msize,0)
+          #rsids <- splitWithOverlap(rsids,msize,0)
+          nsets <- length(sets)
           print(paste("Processing chromosome", chr))
           for (set in 1:nsets) {
-               cls <- match(rsids[[set]],Glist$rsids[[chr]])
+               cls <- match(rsids[sets[[set]]],Glist$rsids[[chr]])
                W <- getG(Glist=Glist, cls=cls, chr=chr, scale=scale)
-               grs <- grs + tcrossprod(t(S[rsids[[set]],]),W)
+               grs <- grs + tcrossprod(t(S[sets[[set]],]),W)
                if(verbose) print(paste("Processing segment",set, "of", nsets,"on chromosome", chr))
           }
           grs <- t(grs)
@@ -183,9 +188,10 @@ run_gscore <- function(Glist = NULL, chr=NULL, bedfiles=NULL, bimfiles=NULL, fam
                Slist[[j]] <- S[,j]
           }
           cls <- match(stat$rsids, Glist$rsids[[chr]])
-          af <- stat$af
-          if(scale) grs <- .Call("_qgg_mtgrsbed", Glist$bedfiles[chr], Glist$n, cls, af, scale, Slist)
-          if(!scale) grs <- .Call("_qgg_mtgrsbed", Glist$bedfiles[chr], n=Glist$n, cls=cls, af=af, scale=FALSE, Slist)
+          #af <- stat$eaf
+          af <- Glist$af[[chr]][cls]
+          if(scale) grs <- .Call("_qgg_mtgrsbed", Glist$bedfiles[chr], n=Glist$n, cls=cls, af=af, scale=TRUE, Slist=Slist)
+          if(!scale) grs <- .Call("_qgg_mtgrsbed", Glist$bedfiles[chr], n=Glist$n, cls=cls, af=af, scale=FALSE, Slist=Slist)
           grs <- do.call(cbind, grs)
           #grs <- as.matrix(as.data.frame(grs))
           rownames(grs) <- Glist$ids
@@ -229,25 +235,26 @@ neff <- function(seb=NULL,af=NULL,Vy=1) {
 }
 
 
-#' Adjust marker effects based on correlated information
-#'
+
+#' Adjustment of marker effects using correlated trait information
 #'
 #' @description
-#' The mtadj function use selection index theory to find the optimal weights across n traits, which is used to adjust marker effects by n correlated traits.
-#' (https://www.nature.com/articles/s41467-017-02769-6)
+#' The `mtadj` function uses selection index theory to determine the optimal weights across `n` traits. 
+#' These weights are then used to adjust marker effects by `n` correlated traits. 
+#' More details can be found [here](https://www.nature.com/articles/s41467-017-02769-6).
 #'    
-#' @param h2 vector of heritability estimates
-#' @param rg n-by-n matrix of genetic correlations
-#' @param n vector of sample size used to estimate marker effects for each trait
-#' @param b matrix of marker effects
-#' @param z matrix of z-scores
-#' @param meff effective number of uncorrelated genomic segments (default=60,000)
-#' @param mtotal total number of markers 
-#' @param statistics which kind of statistics ("b" or "z") used in the analysis
-#' @param method method used to estimate marker effects; OLS: ordinary least square (default), or BLUP: best linear unbiased prediction
-#' @param stat dataframe with marker summary statistics
+#' @param h2 A vector of heritability estimates.
+#' @param rg An n-by-n matrix of genetic correlations.
+#' @param n A vector indicating the sample size used to estimate marker effects for each trait.
+#' @param b A matrix of marker effects.
+#' @param z A matrix of z-scores.
+#' @param meff Effective number of uncorrelated genomic segments (default = 60,000).
+#' @param mtotal Total number of markers.
+#' @param statistics Specifies which kind of statistics ("b" or "z") should be used in the analysis.
+#' @param method Method to estimate marker effects. Can be "OLS" (ordinary least square, default) or "BLUP" (best linear unbiased prediction).
+#' @param stat A dataframe containing marker summary statistics.
 #' 
-#' @return Matrix of adjusted marker effects for each trait
+#' @return A matrix of adjusted marker effects for each trait.
 #' 
 #' @author Palle Duun Rohde and Peter Soerensen
 #' 

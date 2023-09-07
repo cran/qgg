@@ -20,6 +20,7 @@ gbayes(
   seb = NULL,
   LD = NULL,
   n = NULL,
+  formatLD = "dense",
   vg = NULL,
   vb = NULL,
   ve = NULL,
@@ -41,6 +42,7 @@ gbayes(
   nue = 4,
   verbose = FALSE,
   msize = 100,
+  mask = NULL,
   GRMlist = NULL,
   ve_prior = NULL,
   vg_prior = NULL,
@@ -50,7 +52,7 @@ gbayes(
   nit_local = NULL,
   nit_global = NULL,
   method = "mixed",
-  algorithm = "default"
+  algorithm = "mcmc"
 )
 }
 \arguments{
@@ -83,6 +85,8 @@ gbayes(
 \item{LD}{is a list with sparse LD matrices}
 
 \item{n}{is a scalar or vector of number of observations for each trait}
+
+\item{formatLD}{is a character specifying LD format (formatLD="dense" is default)}
 
 \item{vg}{is a scalar or matrix of genetic (co)variances}
 
@@ -125,6 +129,8 @@ gbayes(
 \item{verbose}{is a logical; if TRUE it prints more details during iteration}
 
 \item{msize}{number of markers used in compuation of sparseld}
+
+\item{mask}{is a vector or matrix of TRUE/FALSE specifying if marker should be ignored}
 
 \item{GRMlist}{is a list providing information about GRM matrix stored in binary files on disk}
 

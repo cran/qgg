@@ -106,7 +106,7 @@
 #' @export
 gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g = NULL, e = NULL, threshold = 0.05, method = "sum", nperm = 1000, ncores = 1) {
   if(is.data.frame(stat)) {
-    colstat <- !colnames(stat)%in%c("rsids","chr","pos","a1","a2","af")
+    colstat <- !colnames(stat)%in%c("rsids","chr","pos","ea","nea","eaf")
     if(any(colstat)) stat <- as.matrix(stat[,colstat])**2
     if(!any(colstat)) stat <- as.matrix(stat[,colstat])
   }
@@ -135,6 +135,7 @@ gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g
       p <- gsets(stat = stat, sets = sets, ncores = ncores, np = nperm, method = method)
       res <- cbind(m = msets, stat = setstat, p = p)
       rownames(res) <- names(sets)
+      res <- as.data.frame(res)
     }
     return(res)
   }
@@ -178,7 +179,7 @@ gsea <- function(stat = NULL, sets = NULL, Glist = NULL, W = NULL, fit = NULL, g
   }
   if (method == "hyperg") {
     res <- hgtest(p = stat, sets = sets, threshold = threshold)
-    return(res)
+    return(as.data.frame(res))
   }
 }
 
@@ -200,6 +201,21 @@ gsets <- function(stat = NULL, sets = NULL, ncores = 1, np = 1000, method = "sum
 }
 
 
+#' Map Sets to RSIDs
+#'
+#' This function maps sets to rsids. If a `Glist` is provided, `rsids` are extracted from the `Glist`.
+#' It returns a list of matched RSIDs for each set.
+#'
+#' @param sets A list of character vectors where each vector represents a set of items. If the names
+#'   of the sets are not provided, they are named as "Set1", "Set2", etc.
+#' @param rsids A character vector of RSIDs. If `Glist` is provided, this parameter is ignored.
+#' @param Glist A list containing an element `rsids` which is a character vector of RSIDs.
+#' @param index A logical. If `TRUE` (default), it returns indices of RSIDs; otherwise, it returns the RSID names.
+#' 
+#' @return A list where each element represents a set and contains matched RSIDs or their indices.
+#' 
+#' @keywords internal
+#' @export
 mapSets <- function(sets = NULL, rsids = NULL, Glist = NULL, index = TRUE) {
   if (!is.null(Glist)) rsids <- unlist(Glist$rsids)
   nsets <- sapply(sets, length)
@@ -345,18 +361,48 @@ scoretest <- function(e = NULL, W = NULL, sets = NULL, nperm = 100) {
 }
 
 
-
 hgtest <- function(p = NULL, sets = NULL, threshold = 0.05) {
-  N <- length(p)
-  Na <- sum(p < threshold)
-  Nna <- N - Na
-  Nf <- sapply(sets, length)
-  Naf <- sapply(sets, function(x) {
+  population_size <- length(p)
+  sample_size <- sapply(sets, length)
+  n_successes_population <- sum(p < threshold)
+  n_successes_sample <- sapply(sets, function(x) {
     sum(p[x] < threshold)
   })
-  Nnaf <- Nf - Naf
-  Nanf <- Na - Naf
-  Nnanf <- Nna - Nnaf
-  phyperg <- 1 - phyper(Naf - 1, Nf, N - Nf, Na)
-  phyperg
+  phyperg <- rep(1,length(sets))
+  names(phyperg) <- names(sets)
+  for (i in 1:length(sets)) {
+    phyperg[i] <- 1.0-phyper(n_successes_sample[i]-1, n_successes_population,
+                             population_size-n_successes_population,
+                             sample_size[i])
+  }
+  # Calculate enrichment factor
+  ef <- (n_successes_sample/sample_size)/
+    (n_successes_population/population_size)
+  
+  # Create data frame for table
+  res <- data.frame(ng = sample_size,
+                   nag = n_successes_sample,
+                   ef=ef,
+                   p = phyperg)
+  #colnames(res) <- c("Feature", "Number of Genes",
+  #                  "Number of Associated Genes",
+  #                  "Enrichment Factor",
+  #                  "p")
+  res
 }
+
+
+# hgtest <- function(p = NULL, sets = NULL, threshold = 0.05) {
+#   N <- length(p)
+#   Na <- sum(p < threshold)
+#   Nna <- N - Na
+#   Nf <- sapply(sets, length)
+#   Naf <- sapply(sets, function(x) {
+#     sum(p[x] < threshold)
+#   })
+#   Nnaf <- Nf - Naf
+#   Nanf <- Na - Naf
+#   Nnanf <- Nna - Nnaf
+#   phyperg <- 1 - phyper(Naf - 1, Nf, N - Nf, Na)
+#   phyperg
+# }
