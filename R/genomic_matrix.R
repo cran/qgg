@@ -36,7 +36,7 @@
 #' and phenotypes (gsolve) or genotypes and summary statistics (gscore).
 #'
 #' @param Glist A list containing information about the genotype matrix stored on disk.
-#' @param task A character string specifying the task to perform. Possible tasks are "prepare" (default), "sparseld", "ldscores", "ldsets", and "geneticmap".
+#' @param task A character string specifying the task to perform. Possible tasks are "prepare" (default), "sparseld", "ldscores", and "geneticmap".
 #' @param study The name of the study.
 #' @param fnBED Path and filename of the .bed binary file used to store genotypes on disk.
 #' @param bedfiles A vector of filenames for the PLINK bed-files.
@@ -69,11 +69,8 @@
 #' Glist <- gprep(study="Example", bedfiles=bedfiles, bimfiles=bimfiles,
 #'              famfiles=famfiles)
 #' 
-
-
 #' @export
 #'
-
 gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ldfiles = NULL,
                   bedfiles = NULL, bimfiles = NULL, famfiles = NULL, mapfiles=NULL, 
                   ids = NULL, rsids = NULL, assembly=NULL,
@@ -94,9 +91,8 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
     if (is.null(famfiles)) Glist$famfiles <- gsub(".bed", ".fam", bedfiles)
 
     # Read fam information
-    fam <- data.table::fread(input = famfiles[1], header = FALSE, data.table = FALSE, colClasses = "character")
+    fam <- fread(input = famfiles[1], header = FALSE, data.table = FALSE, colClasses = "character")
     Glist$ids <- as.character(fam[, 2])
-    #Glist$study_ids <- Glist$ids
     Glist$study_ids <- NULL
     Glist$n <- length(Glist$ids)
     if (!is.null(ids)) {
@@ -126,10 +122,10 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
     Glist$n2 <- vector(mode = "list", length = nfiles)
 
     for (chr in 1:length(bedfiles)) {
-      bim <- data.table::fread(input = bimfiles[chr], header = FALSE, data.table = FALSE, colClasses = "character")
+      bim <- fread(input = bimfiles[chr], header = FALSE, data.table = FALSE, colClasses = "character")
       rsidsBIM <- as.character(bim[, 2])
       if (!is.null(rsids)) bim <- droplevels(bim[rsidsBIM %in% rsids, ])
-      fam <- data.table::fread(input = famfiles[chr], header = FALSE, data.table = FALSE, colClasses = "character")
+      fam <- fread(input = famfiles[chr], header = FALSE, data.table = FALSE, colClasses = "character")
       if (any(!Glist$ids %in% as.character(fam[, 2]))) stop(paste("some ids not found in famfiles"))
       message(paste("Finished processing fam file", famfiles[chr]))
       Glist$a1[[chr]] <- as.character(bim[, 5])
@@ -141,41 +137,17 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
       Glist$chr[[chr]] <- as.character(bim[, 1])
       Glist$cpra[[chr]] <- paste(Glist$chr[[chr]],Glist$pos[[chr]],Glist$a1[[chr]],Glist$a2[[chr]],sep="_")
       message(paste("Finished processing bim file", bimfiles[chr]))
-      #if (is.null(Glist$fnBED)) Glist <- summaryBED(Glist=Glist, chr=chr, ids = Glist$ids, ncores = ncores)
       if (is.null(Glist$fnBED)) Glist <- summaryBED(Glist=Glist, chr=chr, ids = Glist$study_ids, ncores = ncores)
       message(paste("Finished processing bed file", bedfiles[chr]))
-      #names(Glist$nmiss[[chr]]) <- Glist$rsids[[chr]]
       cnames <- Glist$rsids[[chr]]
       Glist$af1[[chr]] <- Glist$af[[chr]]
       Glist$af2[[chr]] <- 1-Glist$af[[chr]]
-      #names(Glist$af[[chr]]) <- cnames
-      #names(Glist$af1[[chr]]) <- NULL
-      #names(Glist$af2[[chr]]) <- NULL
-      #names(Glist$maf[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$a1[[chr]]) <- cnames
-      #names(Glist$a2[[chr]]) <- cnames
-      #names(Glist$pos[[chr]]) <- cnames
-      #names(Glist$map[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$het[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$hom[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$n0[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$n1[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$n2[[chr]]) <- Glist$rsids[[chr]]
-      #names(Glist$cpra[[chr]]) <- cnames
-      #names(Glist$rsids[[chr]]) <- Glist$cpra[[chr]]
-      #names(Glist$chr[[chr]]) <- cnames
     }
-
     Glist$nchr <- length(Glist$bedfiles)
     Glist$assembly <- assembly
 
   }
-     # if (task == "combine") {
-     #      writeBED(bedfiles = bedfiles, bimfiles = bimfiles, famfiles = famfiles, 
-     #               fnBED=fnBED, ids = ids, rsids = rsids, overwrite = FALSE) {
-     #           
-     # }
-
+  
   if (task == "sparseld") {
     message("Computing ld")
     Glist$msize <- msize
@@ -184,7 +156,7 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
     Glist$rsidsLD <- vector(mode = "list", length = length(Glist$ldfiles))
     Glist$ldscores <- vector(mode = "list", length = length(Glist$ldfiles))
     if (is.null(ids)) ids <- Glist$ids
-    Glist$idsLD <- ids
+    Glist$idsLD <- as.character(ids)
     for( chr in 1:length(Glist$ldfiles)) {
       message(paste("Compute sparse LD matrix for chromosome:",chr))
       Glist <- sparseLD(Glist = Glist, fnLD = Glist$ldfiles[chr], msize = msize, chr = chr, rsids = rsids,
@@ -192,20 +164,7 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
       Glist$ldscores[[chr]] <- ldscore( Glist=Glist, chr=chr) 
     }
   }
-  if (task == "ldsets") {
-    if(is.null(r2)) stop("Please specify r2 threshold - can be a vector of values (e.g. r2=c(0.7,0.8,0.9) )")
-    Glist$ldSets <- vector(length=length(r2), mode="list")
-    names(Glist$ldSets) <- r2
-    for (i in 1:length(r2) ) {
-      ldSets <- vector(length=Glist$nchr, mode="list")
-      for (chr in 1:Glist$nchr) {
-        message(paste("Extract LD information for chromosome:", chr))
-        ldSets[[chr]] <- getLDsets(Glist = Glist, r2 = 0.5, chr = chr)
-      }
-      Glist$ldSets[[i]] <- ldSets
-    }
-  }  
-  
+ 
   if (task == "geneticmap") {
     message("Add Genetic map to Glist")
     if(is.null(Glist)) stop("Please provide Glist")
@@ -214,7 +173,7 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
     for (chr in 1:Glist$nchr) {
       Glist$map[[chr]] <- rep(NA,Glist$mchr[chr])
       names(Glist$map[[chr]]) <- Glist$rsids[[chr]]
-      map <- data.table::fread(mapfiles[chr],data.table=F)
+      map <- fread(mapfiles[chr],data.table=F)
       dups <- map[duplicated(map[,2]),2]
       map <- map[!map[,2]%in%dups,]
       map <- map[map[,2]%in%Glist$rsids[[chr]],]
@@ -238,9 +197,6 @@ gprep <- function(Glist = NULL, task = "prepare", study = NULL, fnBED = NULL, ld
   
   return(Glist)
 }
-
-
-
 
 summaryBED <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls = NULL, chr = NULL, ncores = 1) {
 
@@ -269,8 +225,6 @@ summaryBED <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls =
   nmiss <- freq[2,]
   hom <- (freq[1,] + freq[4,]) / (freq[1,] + freq[3,] + freq[4,])
   het <- (freq[3,]) / (freq[1,] + freq[3,] + freq[4,])
-  #af <- (2*freq[1,] + freq[3,])/(2*freq[1,] + 2*freq[3,] + 2*freq[4,])
-  #nalleles <- 2*(n-nmiss)
   nalleles <- 2*(nr-nmiss)
   af <- 2*freq[1,] + freq[3,]
   af[nalleles>0] <- af[nalleles>0]/nalleles[nalleles>0]
@@ -279,8 +233,6 @@ summaryBED <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls =
   tol_lower <- 0.00001
   af[af>tol_upper] <- tol_upper
   af[af<tol_lower] <- tol_lower
-
-  
   maf <- af
   maf[maf > 0.5] <- 1 - maf[maf > 0.5]
   if(!is.null(chr)) {
@@ -296,7 +248,6 @@ summaryBED <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls =
   return(Glist)
 }
 
-#'
 #' Filter genetic marker data based on different quality measures
 #'
 #' @description
@@ -330,14 +281,11 @@ summaryBED <- function(Glist = NULL, ids = NULL, rsids = NULL, rws = NULL, cls =
 #' @param excludeINDEL A logical value; if TRUE exclude markers that are insertions or deletions (INDELs).
 #' @param excludeDUPS A logical value; if TRUE exclude markers if their identifiers are duplicated.
 #' @param assembly A character string indicating the name of the genome assembly (e.g., "GRCh38").
-
+#' 
 #' @author Peter Soerensen
-
-
 #'
 #' @export
 #'
-
 gfilter <- function(Glist = NULL, excludeMAF=0.01, excludeMISS=0.05, excludeINFO=NULL,excludeCGAT=TRUE,
                     excludeINDEL=TRUE, excludeDUPS=TRUE, excludeHWE=1e-12, excludeMHC=FALSE, assembly="GRCh37") {
 # excludeINFO is a numeric value of the info score used for filtering
@@ -347,16 +295,22 @@ gfilter <- function(Glist = NULL, excludeMAF=0.01, excludeMISS=0.05, excludeINFO
   if(!is.null(excludeMISS)) isMISS <- unlist(lapply(Glist$nmiss,function(x) {x/length(Glist$study_ids)>excludeMISS}))
   if(!is.null(excludeHWE)) isHWE <- unlist(hwe(Glist)) < excludeHWE 
   
-  
   isHWE[is.na(isHWE)] <- TRUE
+  
   if(excludeMHC) {
     if(assembly=="GRCh37"){
-        isMHC <-  Glist$pos[[6]] > 28477797 & Glist$pos[[6]] < 33448354
-        rsidsMHC <- names(isMHC)[isMHC]
+      #isMHC <-  Glist$pos[[6]] > 28477797 & Glist$pos[[6]] < 33448354
+      #rsidsMHC <- Glist$rsids[[6]]
+      isMHC <-  unlist(Glist$chr)=="6" & unlist(Glist$pos) > 28477797 & unlist(Glist$pos) < 33448354
+      rsidsMHC <- unlist(Glist$rsids)
+      rsidsMHC <- rsidsMHC[isMHC]
     }
     if(assembly=="GRCh38"){
-        isMHC <-  Glist$pos[[6]] > 28510120 & Glist$pos[[6]] < 33480577
-        rsidsMHC <- names(isMHC)[isMHC]
+      #isMHC <-  Glist$pos[[6]] > 28510120 & Glist$pos[[6]] < 33480577
+      #rsidsMHC <- Glist$rsids[[6]]
+      isMHC <-  unlist(Glist$chr)=="6" & unlist(Glist$pos) > 28510120 & unlist(Glist$pos) < 33480577
+      rsidsMHC <- unlist(Glist$rsids)
+      rsidsMHC <- rsidsMHC[isMHC]
     }
   }
   a1 <- unlist(Glist$a1)
@@ -411,63 +365,79 @@ gfilter <- function(Glist = NULL, excludeMAF=0.01, excludeMISS=0.05, excludeINFO
   return(unlist(rsidsQC))  
 }
 
+#' Write a subset of data from a BED file
+#'
+#' This function reads a BED file and writes a subset of it based on a list of
+#' SNP (rsids) identifiers to output BED, BIM, and FAM files.
+#'
+#' @param bedRead The full path to the input BED file to read.
+#' @param bimRead The full path to the input BIM file to read.
+#' @param famRead The full path to the input FAM file to read.
+#' @param bedWrite The full path to the output BED file to write.
+#' @param bimWrite The full path to the output BIM file to write.
+#' @param famWrite The full path to the output FAM file to write.
+#' @param rsids A character vector containing SNP rsids to select from the BIM file.
+#' 
+#' @return No return value. Files are written to the specified output paths.
+#'
+#' @keywords internal
+#' 
+#' @export
+#' 
+writeBED <- function(bedRead = NULL, bimRead = NULL, famRead = NULL,
+                     bedWrite = NULL, bimWrite = NULL, famWrite = NULL,
+                     rsids = NULL, endian=.Platform$endian, useBytes=TRUE) {
+  
+  # Input validation
+  if (any(sapply(list(bedRead, bimRead, famRead, bedWrite, bimWrite, famWrite, rsids), is.null))) {
+    stop("All input arguments must be provided.")
+  }
+  
+  bim <- fread(input = bimRead, header = FALSE, data.table = FALSE, colClasses = "character")
+  fam <- fread(input = famRead, header = FALSE, data.table = FALSE, colClasses = "character")
+  
+  if (is.null(rsids)) stop("Missing rsids argument")
+  
+  n <- nrow(fam)
+  m <- nrow(bim)
+  
+  # Number of bytes for each marker
+  nbytes <- ceiling(n / 4)
+  
+  # Check file size
+  if (!file.size(bedRead) == nbytes * m + 3) stop("Size of bed file does not match the number of individuals in fam file")
+  
+  selected <- bim[, 2] %in% rsids
+  
+  fwrite(bim[selected, ], file = bimWrite, col.names = FALSE, row.names = FALSE, sep=" ")
+  fwrite(fam, file = famWrite, col.names = FALSE, row.names = FALSE, sep=" ")
+  
+  # Check magic number
+  bfbedRead <- file(bedRead, "rb")
+  magic <- readBin(bfbedRead, "raw", n = 3, size=1,
+                   signed=FALSE, endian=endian)
+  if (!all(magic[1] == "6c", magic[2] == "1b", magic[3] == "01")) {
+    close(bfbedRead)
+    stop("Wrong magic number for bed file; should be -- 0x6c 0x1b 0x01 --.")
+  }
+  
+  bfbedWrite <- file(bedWrite, "wb")
+  
+  # Read/write magic number
+  writeBin(magic, bfbedWrite, size=1, endian=endian, useBytes=useBytes)
+  
+  # Read/write genotypes for each marker
+  for (i in 1:m) {
+    g <- readBin(bfbedRead, "raw", n = nbytes, size=1,
+                 signed=FALSE, endian=endian)
+    if (selected[i]) writeBin(g, bfbedWrite, size=1, 
+                              endian=endian, useBytes=useBytes)
+  }
+  
+  close(bfbedRead)
+  close(bfbedWrite)
+}
 
-# writeBED <- function(bedfiles = NULL, bimfiles = NULL, famfiles = NULL, 
-#                      fnBED=NULL, fnBIM=NULL, fnFAM=NULL, ids = NULL, rsids = NULL, overwrite = FALSE) {
-#      if (file.exists(fnBED)) {
-#           warning(paste("fnBED file allready exist"))
-#           if (!overwrite) stop(paste("fnBED file allready exist"))
-#      }
-#      if (is.null(bimfiles)) bimfiles <- gsub(".bed", ".bim", bedfiles)
-#      if (is.null(famfiles)) famfiles <- gsub(".bed", ".fam", bedfiles)
-#      if (is.null(fnBIM)) fnBIM <- gsub(".bed", ".bim", fnBIM)
-#      if (is.null(fnFAM)) fnFAM <- gsub(".bed", ".fam", fnFAM)
-#      if (file.exists(fnBIM)) {
-#           stop(paste("fnBIM file allready exist"))
-#      }
-#      if (file.exists(fnFAM)) {
-#           stop(paste("fnFAM file allready exist"))
-#      }
-#      
-#      bim_combined <- NULL
-#      for (chr in 1:length(bedfiles)) {
-#           message(paste("Processing bedfile:", bedfiles[chr]))
-#           bim <- data.table::fread(input = bimfiles[chr], header = FALSE, data.table = FALSE, colClasses = "character")
-#           fam <- data.table::fread(input = famfiles[chr], header = FALSE, data.table = FALSE)
-#           n <- nrow(fam)
-#           m <- nrow(bim)
-#           rsidsBIM <- as.character(bim[, 2])
-#           keep <- rep(TRUE, m)
-#           if (!is.null(rsids)) keep <- rsidsBIM %in% rsids
-#           cls <- (1:m)[keep]
-#           
-#           fnBEDCHR <- bedfiles[chr]
-#           bfBEDCHR <- file(fnBEDCHR, "rb")
-#           magic <- readBin(bfBEDCHR, "raw", n = 3)
-#           if (!all(magic[1] == "6c", magic[2] == "1b", magic[3] == "01")) {
-#                stop("Wrong magic number for bed file; should be -- 0x6c 0x1b 0x01 --.")
-#           }
-#           close(bfBEDCHR)
-#           append <- 1
-#           if (chr == 1) append <- 0
-#           result <- .Call("_qgg_bed2bed", fnBED, bedfiles[chr], n, cls)
-#           bim_combined <- rbind(bim_combined,bim[keep,])
-#           #res <- .Fortran("bed2raw",
-#           #                m = as.integer(m),
-#           #                cls = as.integer(keep),
-#           #                nbytes = as.integer(nbytes),
-#           #                append = as.integer(append),
-#           #                fnBEDCHAR = as.integer(unlist(sapply(as.character(fnBED),charToRaw),use.names=FALSE)),
-#           #                fnBEDCHAR = as.integer(unlist(sapply(as.character(fnBED),charToRaw),use.names=FALSE)),
-#           #                ncharbed = nchar(as.character(fnBED)),
-#           #                ncharraw = nchar(as.character(fnBED)),
-#           #                PACKAGE = "qgg"
-#           #)
-#           message(paste("Finished processing bedfile:", bedfiles[chr]))
-#      }
-#      fwrite(bim_combined, file.name=fnBIM)
-#      fwrite(fam_combined, file.name=fnFAM)
-# }
 
 
 #' Get elements from genotype matrix stored in PLINK bedfiles
@@ -499,7 +469,7 @@ gfilter <- function(Glist = NULL, excludeMAF=0.01, excludeMISS=0.05, excludeINFO
 #' in the `Glist`, a warning is raised.
 #'
 #' @export
-
+#' 
 getG <- function(Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, famfiles = NULL, ids = NULL, rsids = NULL,
                  rws = NULL, cls = NULL, impute = TRUE, scale = FALSE) {
   
@@ -529,12 +499,9 @@ getG <- function(Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, fam
 }
 
 
-
 getW <- function(Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, famfiles = NULL, ids = NULL, rsids = NULL,
                      rws = NULL, cls = NULL, impute = TRUE, scale = FALSE,
                      allele = NULL) {
-     
-
   if (!is.null(Glist)) {
     if (is.null(chr)) stop("please provide chr")
     m <- Glist$mchr[chr]
@@ -555,15 +522,14 @@ getW <- function(Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, fam
     ids <- Glist$ids[rws]
     rsids <- Glist$rsids[[chr]][cls]
   }
-
   if (!is.null(bedfiles)) {
     if (is.null(bimfiles)) bimfiles <- gsub(".bed", ".bim", bedfiles)
     if (is.null(famfiles)) famfiles <- gsub(".bed", ".fam", bedfiles)
-    bim <- data.table::fread(
+    bim <- fread(
       input = bimfiles, header = FALSE, data.table = FALSE, showProgress = FALSE,
       colClasses = "character"
     )
-    fam <- data.table::fread(
+    fam <- fread(
       input = famfiles, header = FALSE, data.table = FALSE, showProgress = FALSE,
       colClasses = "character"
     )
@@ -597,9 +563,6 @@ getW <- function(Glist = NULL, chr = NULL, bedfiles = NULL, bimfiles = NULL, fam
   return(W)
 }
 
-
-
-
 sparseLD <- function(Glist = NULL, fnLD = NULL, bedfiles = NULL, bimfiles = NULL, famfiles = NULL, msize = 100, chr = NULL, rsids = NULL, allele = NULL,
                      ids = NULL, ncores = 1, overwrite=FALSE) {
 
@@ -613,14 +576,14 @@ sparseLD <- function(Glist = NULL, fnLD = NULL, bedfiles = NULL, bimfiles = NULL
      Glist <- NULL
      Glist$fnBED <- bedfiles
 
-     bim <- data.table::fread(input = bimfiles, header = FALSE, data.table = FALSE, colClasses = "character")
+     bim <- fread(input = bimfiles, header = FALSE, data.table = FALSE, colClasses = "character")
      Glist$a1 <- as.character(bim[, 5])
      Glist$a2 <- as.character(bim[, 6])
      Glist$pos <- as.numeric(bim[, 4])
      Glist$rsids <- as.character(bim[, 2])
      Glist$chr <- as.character(bim[, 1])
 
-     fam <- data.table::fread(input = famfiles, header = FALSE, data.table = FALSE, colClasses = "character")
+     fam <- fread(input = famfiles, header = FALSE, data.table = FALSE, colClasses = "character")
      Glist$n <- nrow(fam)
      Glist$ids <- as.character(fam[, 2])
      if (any(!ids %in% as.character(fam[, 2]))) stop(paste("some ids not found in famfiles"))
@@ -654,6 +617,7 @@ sparseLD <- function(Glist = NULL, fnLD = NULL, bedfiles = NULL, bimfiles = NULL
     W1 = W2
     W2 = W3
     W3 <- .Call("_qgg_readW", Glist$bedfiles[chr], Glist$n, cls[[j]], af[[j]])
+    #W3 <- W3[rws,]
     W3 <- scale(W3[rws,])
     #if(j == nsets) W3 <- cbind(W3[rws,],matrix(0, nrow = nr, ncol = msize-nc))     
     if(j == nsets) W3 <- cbind(W3,matrix(0, nrow = nr, ncol = msize-nc))     
@@ -695,6 +659,7 @@ sparseLD <- function(Glist = NULL, fnLD = NULL, bedfiles = NULL, bimfiles = NULL
 #' @param r2 A numeric threshold, defaulting to 0.5, used for extracting LD sets.
 #'
 #' @keywords internal
+#' 
 #' @export
 #' 
 getLDsets <- function(Glist = NULL, chr = NULL, r2 = 0.5) {
@@ -738,7 +703,9 @@ getLDsets <- function(Glist = NULL, chr = NULL, r2 = 0.5) {
 #' The main diagonal (msize + 1 row) is set to 1 for all SNPs.
 #'
 #' @keywords internal
+#' 
 #' @export
+#' 
 getLD <- function(Glist = NULL, chr = NULL, rsids=NULL) {
   msize <- Glist$msize
   rsidsChr <- Glist$rsidsLD[[chr]]
@@ -776,53 +743,302 @@ getLD <- function(Glist = NULL, chr = NULL, rsids=NULL) {
 #' and columns named after the rsids is returned.
 #'
 #' @keywords internal
+#' 
 #' @export
 #' 
-getSparseLD <- function(Glist = NULL, chr = NULL, r2 = 0, onebased=TRUE, rsids=NULL, format="sparse") {
+getSparseLD <- function(Glist = NULL, chr = NULL, r2 = 0, onebased=FALSE, rsids=NULL, format="sparse") {
   msize <- Glist$msize
-  rsidsChr <- Glist$rsidsLD[[chr]]
-  mchr <- length(rsidsChr)
-  rsidsLD <- c(rep("start", msize), rsidsChr, rep("end", msize))
-  if(onebased) rsids_indices <- c(rep(0, msize), 1:mchr, rep(0, msize))
-  if(!onebased) rsids_indices <- c(rep(0, msize), 0:(mchr-1), rep(0, msize))
+  rsidsLD <- Glist$rsidsLD[[chr]]
+  mchr <- length(rsidsLD)
+  indices <- 1:mchr
+  if(!onebased) indices <- indices - 1
+  rsids_indices <- c(rep(NA, msize), indices, rep(NA, msize))
   ld_indices <- vector(length = mchr, mode = "list")
   ld_values <- vector(length = mchr, mode = "list")
-  names(ld_indices) <- names(ld_values) <- rsidsChr
-  
+  names(ld_indices) <- names(ld_values) <- rsidsLD
+  if(is.null(Glist$ldfiles[chr])) stop("LD file not found")
   fnLD <- Glist$ldfiles[chr]
   bfLD <- file(fnLD, "rb")
-  
   nld <- as.integer(msize * 2 + 1)
   for (i in 1:mchr) {
     ld <- readBin(bfLD, "numeric", n = nld, size = 4, endian = "little")
-    ld[msize + 1] <- 1
-    cls <- which((ld**2) > r2) + i - 1
-    ld_indices[[i]] <- rsids_indices[cls]
-    ld_values[[i]] <- ld[(ld**2) > r2]
+      ld[msize + 1] <- 1
+      cls <- which((ld^2) > r2) + i - 1
+      ld_indices[[i]] <- rsids_indices[cls]
+      ld_values[[i]] <- ld[(ld^2) > r2]
   }
   close(bfLD)
-  if(format=="sparse") return(list(indices=ld_indices,values=ld_values))
-  if(format=="dense") {
-    if(is.null(rsids)) {
-      LD <- matrix(0,nrow=length(ld_values),ncol=length(ld_values), 
-                   dimnames=list(names(ld_values),names(ld_values) ) )  
-      for(i in 1:length(ld_values)) {
-        LD[i,ld_indices[[i]]] <- ld_values[[i]]
-      }
+  return(list(indices=ld_indices,values=ld_values, rsids=names(ld_indices), onebased=onebased, msize=msize, fnLD=fnLD))
+}
+
+
+#' Extract Linkage Disequilibrium (LD) Scores
+#'
+#' This function retrieves LD scores from a structured list (`Glist`) that includes
+#' LD scores, chromosome information, and SNP identifiers. You can extract all LD scores
+#' or filter them by a specific chromosome and/or SNP identifiers (rsids).
+#'
+#' @param Glist A list structure containing genotypic data, including rsids for LD calculation (`rsidsLD`), LD file locations (`ldfiles`), and `msize` which indicates the size for surrounding region to consider for LD.
+#' @param chr A specific chromosome from which LD sets need to be extracted.
+#' @param rsids A vector of rsids that need to be included in the sparse LD matrix. Default is NULL, implying all rsids in the chromosome will be used.
+#' 
+#' @return A vector containing LD scores.
+#' 
+#' @keywords internal
+#' 
+#' @export
+#' 
+getLDscores <- function(Glist = NULL, chr = NULL, rsids = NULL) {
+  # Check for required input
+  if (is.null(Glist) || is.null(Glist$ldscores)) {
+    stop("Glist must contain a valid 'ldscores' component. Compute ldscores using the gprep function in qgg.")
+  }
+  
+  # If chromosome is not specified, return all ldscores
+  if (is.null(chr)) {
+    return(unlist(Glist$ldscores))
+  }
+  
+  # Ensure chr is a valid input
+  chr <- as.character(chr)  # Ensure chr is a character for comparison
+  rws <- unlist(Glist$chr) == chr  # Logical vector for matching chromosome
+  
+  if (!any(rws)) {
+    stop(paste("Chromosome", chr, "not found in Glist$chr."))
+  }
+  
+  # Subset rsids by chromosome
+  chr_rsids <- unlist(Glist$rsids)[rws]
+  
+  # Ensure rsids are in ldscores names
+  valid_rsids <- chr_rsids[chr_rsids %in% names(unlist(Glist$ldscores))]
+  
+  if (length(valid_rsids) == 0) {
+    stop("No matching rsids found in ldscores for the specified chromosome.")
+  }
+  
+  # Return filtered ldscores
+  return(unlist(Glist$ldscores)[valid_rsids])
+}
+# getLDscores <- function(Glist = NULL, chr = NULL, rsids=NULL) {
+#   if(is.null(Glist$ldscores)) stop("Please compute ldscores using the gprep function in qgg")
+#   if(is.null(chr)) return(unlist(Glist$ldscores))
+#   if(!is.null(chr)) {
+#     rws <- unlist(Glist$chr)==as.character(chr)
+#     rsids <- unlist(Glist$rsids)[rws]
+#     rsids <- rsids[rsids%in%names(unlist(Glist$ldscores))]
+#     return(unlist(Glist$ldscores)[rsids])
+#   }
+# }
+
+splitSparseLD <- function(sparseLD = NULL, rsids=NULL, format="sparse", onebased=FALSE) {
+  rsidsLD <-names(sparseLD$indices)
+  inLD <- rsids%in%rsidsLD
+  if(any(!inLD)) stop("Some rsids not not found in sparseLD")
+  rsids <- rsidsLD[rsidsLD%in%rsids]
+  new_indices <- match(rsidsLD,rsids)
+  if(!onebased) new_indices <- new_indices - 1
+  if(format=="sparse") {
+    sparseLD$indices <- sparseLD$indices[rsids]
+    sparseLD$values <- sparseLD$values[rsids]
+    for(i in 1:length(rsids)) {
+      indx <- sparseLD$indices[[i]]
+      if(!sparseLD$onebased) indx <- indx + 1
+      new_indx <- new_indices[indx]
+      sparseLD$indices[[i]] <- new_indx[!is.na(new_indx)]
+      sparseLD$values[[i]] <- sparseLD$values[[i]][!is.na(new_indx)]
     }
-    if(!is.null(rsids)) {
-      LD <- matrix(0,nrow=length(rsids),ncol=length(rsids), 
-                   dimnames=list(rsids,rsids) )
-      for(i in 1:length(rsids)) {
-        ldrsids <-rsidsChr[ld_indices[[rsids[i]]]]
-        ldvals <- ld_values[[rsids[i]]]
-        inlist <- ldrsids%in%rsids 
-        LD[rsids[i],ldrsids[inlist]] <- ldvals[inlist]
-      }
-    }
-    return(LD)
+    sparseLD$rsids <- rsids
+    sparseLD$onebased <- onebased
+    return(sparseLD)
   }
 }
+
+#' Create Linkage Disequilibrium (LD) Sets
+#'
+#' This function partitions a vector of LD scores into sets or blocks based on cumulative LD scores,
+#' with constraints on block size and separation. The method ensures that blocks are evenly distributed
+#' and reduces overlap based on LD patterns.
+#'
+#' @param ldscores A numeric vector of LD scores for markers, where names correspond to marker identifiers.
+#' @param msize An integer specifying the minimum block size for averaging LD scores. Default is 200.
+#' @param maxsize An integer specifying the maximum block size. Default is 2000.
+#' @param nsplit An integer specifying the number of splits (blocks) to create. Default is 200.
+#' @param verbose A logical value. If \code{TRUE}, the function will generate diagnostic plots showing
+#'   the block sizes and cumulative LD score patterns. Default is \code{FALSE}.
+#'
+#' @return A list where each element is a vector of marker names corresponding to a block of LD scores.
+#'
+#' @details
+#' The function uses cumulative sums of LD scores to create blocks of markers that minimize overlap
+#' while satisfying block size constraints. Blocks are defined iteratively by identifying regions
+#' with low cumulative LD scores and expanding them until they reach the defined block size limits.
+#'
+#' - **Cumulative LD Calculation:** The function calculates the average cumulative LD scores
+#'   over sliding windows of size \code{msize}.
+#' - **Block Splitting:** Regions with the lowest cumulative LD scores are selected iteratively
+#'   to define block boundaries.
+#' - **Plotting:** If \code{verbose = TRUE}, the function generates two diagnostic plots:
+#'   - Block sizes for each LD set.
+#'   - Cumulative LD scores across genome positions, highlighting split positions.
+#'
+#' 
+#' @keywords internal
+#' 
+#' @export
+#' 
+createLDsets <- function(ldscores=NULL, msize=200, maxsize=2000, nsplit=200, verbose=FALSE) {
+  csum <- cumsum(ldscores)
+  csum <- (csum[(msize+1):length(csum)] - csum[1:(length(csum) - msize)]) / msize
+  names(csum) <- names(ldscores)[(msize+1):length(csum)]
+  rsum <- csum
+  maxsum <- max(csum)
+  csum[1:maxsize] <- maxsum
+  csum[(length(csum)-maxsize):length(csum)] <- maxsum
+  psplit <- NULL
+  for (i in 1:nsplit) {
+    pos <- which.min(csum)
+    if(csum[pos] < maxsum) {
+      psplit <- c(psplit,pos)
+      csum[max(1,pos-maxsize):min(pos+maxsize,length(csum))] <- maxsum
+    }
+  }
+  splitAt <- function(x, pos) unname(split(x, cumsum(seq_along(x) %in% pos)))
+  sets <- splitAt(1:length(csum),psplit)
+  if(verbose) {
+    plot(sort(sapply(sets,length)),frame.plot=FALSE, xlab="Block", ylab="Size")
+    plot(rsum, type = "n", xlab = "Genome Position", ylab = "LD Scores", frame.plot=FALSE)
+    points(rsum, col = "grey", cex = 0.25)
+    #points(x=psplit, y = 1:length(psplit), col="red", pch=as.character(1:length(psplit)))
+    abline(v = c(1,psplit,length(rsum)), col = "red",lty=2)
+  } 
+  psplit <- match(names(psplit),names(ldscores))
+  sets <- splitAt(names(ldscores),psplit)
+  return(sets)
+}
+
+# getSparseLD <- function(Glist = NULL, chr = NULL, r2 = 0, onebased=TRUE, rsids=NULL, format="sparse") {
+#   msize <- Glist$msize
+#   rsidsChr <- Glist$rsidsLD[[chr]]
+#   mchr <- length(rsidsChr)
+#   rsidsLD <- c(rep("start", msize), rsidsChr, rep("end", msize))
+#   mapped <- rep(T,length(rsidsLD))
+#   if(!is.null(rsids)) mapped <- rsidsLD%in%rsids
+#   if(onebased) rsids_indices <- c(rep(0, msize), 1:mchr, rep(0, msize))
+#   if(!onebased) rsids_indices <- c(rep(0, msize), 0:(mchr-1), rep(0, msize))
+#   ld_indices <- vector(length = mchr, mode = "list")
+#   ld_values <- vector(length = mchr, mode = "list")
+#   names(ld_indices) <- names(ld_values) <- rsidsChr
+#   
+#   if(format=="dense") {
+#     fnLD <- Glist$ldfiles[chr]
+#     bfLD <- file(fnLD, "rb")
+#     
+#     nld <- as.integer(msize * 2 + 1)
+#     for (i in 1:mchr) {
+#       ld <- readBin(bfLD, "numeric", n = nld, size = 4, endian = "little")
+#       ld[msize + 1] <- 1
+#       cls <- which((ld**2) > r2) + i - 1
+#       ld_indices[[i]] <- rsids_indices[cls]
+#       ld_values[[i]] <- ld[(ld**2) > r2]
+#     }
+#     close(bfLD)
+#     #if(format=="sparse") return(list(indices=ld_indices,values=ld_values))
+#     if(is.null(rsids)) {
+#       LD <- matrix(0,nrow=length(ld_values),ncol=length(ld_values), 
+#                    dimnames=list(names(ld_values),names(ld_values) ) )  
+#       for(i in 1:length(ld_values)) {
+#         LD[i,ld_indices[[i]]] <- ld_values[[i]]
+#       }
+#     }
+#     if(!is.null(rsids)) {
+#       LD <- matrix(0,nrow=length(rsids),ncol=length(rsids), 
+#                    dimnames=list(rsids,rsids) )
+#       for(i in 1:length(rsids)) {
+#         ldrsids <-rsidsChr[ld_indices[[rsids[i]]]]
+#         ldvals <- ld_values[[rsids[i]]]
+#         inlist <- ldrsids%in%rsids 
+#         LD[rsids[i],ldrsids[inlist]] <- ldvals[inlist]
+#       }
+#     }
+#     return(LD)
+#   }
+#   if(format=="sparse") {
+#     fnLD <- Glist$ldfiles[chr]
+#     bfLD <- file(fnLD, "rb")
+#     
+#     nld <- as.integer(msize * 2 + 1)
+#     for (i in 1:mchr) {
+#       ld <- readBin(bfLD, "numeric", n = nld, size = 4, endian = "little")
+#       ld[msize + 1] <- 1
+#       cls <- 1:length(ld) + i - 1
+#       ldok <- (ld**2) > r2
+#       mapok <- mapped[cls]
+#       cls <- cls[mapok & ldok]
+#       #ld_indices[[i]] <- rsids_indices[cls]
+#       ld_indices[[i]] <- rsidsLD[cls]
+#       ld_values[[i]] <- ld[mapok & ldok]
+#     }
+#     close(bfLD)
+#     names(ld_indices) <- names(ld_values) <- rsidsChr
+#     isnull <- sapply(ld_indices,length)==0
+#     ld_indices <- ld_indices[!isnull]
+#     ld_values <- ld_values[!isnull]
+#     if(!is.null(rsids)) ld_indices <- ld_indices[names(ld_indices)%in%rsids]
+#     if(!is.null(rsids)) ld_values <- ld_values[names(ld_values)%in%rsids]
+#     ld_indices <- mapSets(sets=ld_indices,rsids=rsids, index=TRUE)
+#     ld_indices <- lapply(ld_indices,function(x){x-1})
+#     
+#     return(list(indices=ld_indices,values=ld_values))
+#   }
+# }
+
+
+# getSparseLD <- function(Glist = NULL, chr = NULL, r2 = 0, onebased=TRUE, rsids=NULL, rsids=NULL, format="sparse") {
+#   msize <- Glist$msize
+#   rsidsChr <- Glist$rsidsLD[[chr]]
+#   mchr <- length(rsidsChr)
+#   rsidsLD <- c(rep("start", msize), rsidsChr, rep("end", msize))
+#   if(onebased) rsids_indices <- c(rep(0, msize), 1:mchr, rep(0, msize))
+#   if(!onebased) rsids_indices <- c(rep(0, msize), 0:(mchr-1), rep(0, msize))
+#   ld_indices <- vector(length = mchr, mode = "list")
+#   ld_values <- vector(length = mchr, mode = "list")
+#   names(ld_indices) <- names(ld_values) <- rsidsChr
+#   
+#   fnLD <- Glist$ldfiles[chr]
+#   bfLD <- file(fnLD, "rb")
+#   
+#   nld <- as.integer(msize * 2 + 1)
+#   for (i in 1:mchr) {
+#     ld <- readBin(bfLD, "numeric", n = nld, size = 4, endian = "little")
+#     ld[msize + 1] <- 1
+#     cls <- which((ld**2) > r2) + i - 1
+#     ld_indices[[i]] <- rsids_indices[cls]
+#     ld_values[[i]] <- ld[(ld**2) > r2]
+#   }
+#   close(bfLD)
+#   if(format=="sparse") return(list(indices=ld_indices,values=ld_values))
+#   if(format=="dense") {
+#     if(is.null(rsids)) {
+#       LD <- matrix(0,nrow=length(ld_values),ncol=length(ld_values), 
+#                    dimnames=list(names(ld_values),names(ld_values) ) )  
+#       for(i in 1:length(ld_values)) {
+#         LD[i,ld_indices[[i]]] <- ld_values[[i]]
+#       }
+#     }
+#     if(!is.null(rsids)) {
+#       LD <- matrix(0,nrow=length(rsids),ncol=length(rsids), 
+#                    dimnames=list(rsids,rsids) )
+#       for(i in 1:length(rsids)) {
+#         ldrsids <-rsidsChr[ld_indices[[rsids[i]]]]
+#         ldvals <- ld_values[[rsids[i]]]
+#         inlist <- ldrsids%in%rsids 
+#         LD[rsids[i],ldrsids[inlist]] <- ldvals[inlist]
+#       }
+#     }
+#     return(LD)
+#   }
+# }
 
 
 #' Plot LD Matrix
@@ -840,7 +1056,9 @@ getSparseLD <- function(Glist = NULL, chr = NULL, r2 = 0, onebased=TRUE, rsids=N
 #'         as labels on the x and y axes, respectively.
 #'
 #' @keywords internal
+#' 
 #' @export
+#' 
 plotLD <- function(LD=NULL, cols=NULL) {
   if(is.null(cols)) cols <- colorRampPalette(c('#f0f3ff','#0033BB'))(256)
   LD <- LD[,ncol(LD):1]
@@ -906,8 +1124,9 @@ regionLD <- function(sparseLD = NULL, onebased=TRUE, rsids=NULL, format="matrix"
 #' If both `cm` and `kb` are NULL, all LD values are used in computation.
 #'
 #' @keywords internal
+#' 
 #' @export
-
+#' 
 ldscore <- function(Glist=NULL, chr=NULL, onebased=TRUE, nbytes=4, cm=NULL, kb=NULL) {
   
   chromosomes <- chr
@@ -932,14 +1151,11 @@ ldscore <- function(Glist=NULL, chr=NULL, onebased=TRUE, nbytes=4, cm=NULL, kb=N
     names(ldchr) <- rsids
     
     if(!is.null(kb)) kb <- kb*1000
-    #if(!is.null(cm)) cm <- cm*1000000
-    
+
     map <- Glist$map[[chr]][rsids]
-    #if(!is.null(cm)) if(any(is.na(map))) stop("Missing values in Glist$map")
     ldmap <- c(rep(NA, msize),map, rep(NA, msize))
     
     pos <- Glist$pos[[chr]][rsids]
-    #if(!is.null(kb)) if(any(is.na(pos))) stop("Missing values in Glist$pos")
     ldpos <- c(rep(NA, msize),pos, rep(NA, msize))
     
     nld <- 1:as.integer(msize * 2 + 1)
@@ -980,44 +1196,6 @@ ldscore <- function(Glist=NULL, chr=NULL, onebased=TRUE, nbytes=4, cm=NULL, kb=N
   return(unlist(ldscores2))
 }
 
-#' Adjust B-values
-#'
-#' This function adjusts the B-values based on the LD structure and other parameters.
-#' The adjustment is done in subsets, and a plot of observed vs. predicted values is produced for each subset.
-#'
-#' @param b A numeric vector containing the B-values to be adjusted. If NULL (default), no adjustments are made.
-#' @param LD A matrix representing the linkage disequilibrium (LD) structure.
-#' @param msize An integer specifying the size of the subsets.
-#' @param overlap An integer specifying the overlap size between consecutive subsets.
-#' @param shrink A numeric value used for shrinkage. Default is 0.001.
-#' @param threshold A numeric value specifying the threshold. Default is 1e-8.
-#'
-#' @return A list containing the adjusted B-values.
-#' 
-#' @keywords internal
-#' @export
-
-adjustB <- function(b=NULL, LD = NULL, msize=NULL, overlap=NULL, shrink=0.001, threshold=1e-8) {
-  m <- length(b)
-  badj <- rep(0,m)
-  sets <- splitWithOverlap(1:m,msize,overlap)
-  for( i in 1:length(sets) ) {
-    rws <- sets[[i]]
-    mset <- length(rws)
-    bset <- b[rws]
-    B <- LD[rws,rws]
-    for (j in 1:mset) {
-      #Bi <- solve( B[-j,-j]+diag(shrink,mset-1) )
-      Bi <- chol2inv(chol(B[-j,-j]+diag(shrink,mset-1)))
-      badj[rws[j]] <- sum(B[j,-j]*Bi%*%bset[-j])
-    }
-    plot(y=badj[rws],x=b[rws],ylab="Predicted", xlab="Observed",  frame.plot=FALSE)
-    abline(0,1, lwd=2, col=2, lty=2)
-  }
-  return(b=badj)
-}
-
-
 
 
 
@@ -1031,8 +1209,11 @@ adjustB <- function(b=NULL, LD = NULL, msize=NULL, overlap=NULL, shrink=0.001, t
 #' @param chr A chromosome from which markers are extracted.
 #' @param region A genome region (in base pairs) from which markers are extracted.
 #' @return A vector of rsids that fall within the specified region on the given chromosome.
+#' 
 #' @keywords internal
+#' 
 #' @export
+#' 
 getMarkers <- function(Glist = NULL, chr = NULL, region = NULL) {
   minpos <- min(region)
   maxpos <- max(region)
@@ -1048,8 +1229,11 @@ getMarkers <- function(Glist = NULL, chr = NULL, region = NULL) {
 #' @param chr A chromosome from which the map is retrieved.
 #' @param rsids A vector of rsids for which the map is needed.
 #' @return A vector containing the map corresponding to the specified rsids on the given chromosome.
+#' 
 #' @keywords internal
+#' 
 #' @export
+#' 
 getMap <- function(Glist = NULL, chr = NULL, rsids = NULL) {
   rws <- match(rsids, Glist$rsids[[chr]])
   map <- Glist$map[[chr]][rws]
@@ -1064,10 +1248,36 @@ getMap <- function(Glist = NULL, chr = NULL, rsids = NULL) {
 #' @param chr A chromosome from which the positions are retrieved.
 #' @param rsids A vector of rsids for which the positions are needed.
 #' @return A vector containing the positions corresponding to the specified rsids on the given chromosome.
+#' 
 #' @keywords internal
+#' 
 #' @export
+#' 
 getPos <- function(Glist = NULL, chr = NULL, rsids = NULL) {
   rws <- match(rsids, Glist$rsids[[chr]])
   pos <- Glist$pos[[chr]][rws]
   return(pos)
+}
+
+
+readLD <- function(fileLD=NULL, onebased=FALSE, r2=0, p=NULL, nbytes=8, full=TRUE) {
+  p <- as.integer(sqrt(file.size(fileLD)/8))
+  r2 <- 0
+  onebased <- FALSE
+  cls <- 1:p
+  if (!onebased) cls <- cls-1
+  ld_indices <- vector(length = p, mode = "list")
+  ld_values <- vector(length = p, mode = "list")
+  bfLD <- file(fileLD, "rb")
+  for(i in 1:p) {
+    ld <- readBin(bfLD, "numeric", n = p)
+    nonzeroes <- which((ld**2) > r2)
+    ld_indices[[i]] <- cls[nonzeroes]
+    ld_values[[i]] <- ld[nonzeroes]
+  }
+  close(bfLD)
+  LD <- NULL
+  LD$values <- ld_values
+  LD$indices <- ld_indices
+  return(LD)
 }

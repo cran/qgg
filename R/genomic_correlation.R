@@ -3,11 +3,13 @@
 ####################################################################################################################
 #'
 #' LD score regression
+#' 
 #' @description
 #' The ldsc function is used for LDSC analysis
 #'
 #' @param Glist list of information about genotype matrix stored on disk
 #' @param stat dataframe with marker summary statistics
+#' @param sets Optional list specifying sets of SNPs for mapping.
 #' @param ldscores vector of LD scores (optional as LD scores are stored within Glist)
 #' @param z matrix of z statistics for n traits
 #' @param b matrix of marker effects for n traits if z matrix not is given
@@ -16,11 +18,13 @@
 #' @param n vector of sample sizes for the traits (element i corresponds to column vector i in z matrix)
 #' @param intercept logical if TRUE the LD score regression includes intercept
 #' @param what either computation of heritability (what="h2") or genetic correlation between traits (what="rg")
+#' @param maxZ2 maximum value for squared value of z-statistics
+#' @param tol smallest value for h2
+#' @param method the regression method to use, options include "regression", "bayesC", "bayesR".
+#' @param residual logical if TRUE then add a residual that capture the h2 not explained by the sets
 #' @param SE.h2 logical if TRUE standard errors and significance for the heritability estimates are computed using a block jackknife approach
 #' @param SE.rg logical if TRUE standard errors and significance for the genetic correlations are computed using a block jackknife approach
 #' @param blk numeric size of the blocks used in the jackknife estimation of standard error (default = 200)
-
-
 #'
 #' @return Returns a matrix of heritability estimates when what="h2", and if SE.h2=TRUE standard errors (SE) and significance levels (P) are returned. 
 #'         If what="rg" an n-by-n matrix of correlations is returned where the diagonal elements being h2 estimates. 
@@ -82,10 +86,10 @@
 #'
 #'
 #'
-#' @export 
-
-ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, stat=NULL, 
-                 n=NULL, intercept=TRUE, what="h2", SE.h2=FALSE, SE.rg=FALSE, blk=200) {
+#' @export
+#'  
+ldsc <- function(Glist=NULL, ldscores=NULL, sets=NULL, method="regression", residual=FALSE, z=NULL, b=NULL, seb=NULL, af=NULL, stat=NULL, tol=1e-8,
+                 n=NULL, intercept=TRUE, what="h2", maxZ2=NULL, SE.h2=FALSE, SE.rg=FALSE, blk=200) {
   
   if(!is.null(Glist) & is.null(ldscores) ) ldscores <- unlist(Glist$ldscores)
   ldscores <- unlist(ldscores)
@@ -96,15 +100,51 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
   if(!is.null(stat)) {
     if(is.data.frame(stat)) {
       z <- as.matrix(stat$b/stat$seb)
-      rownames(z) <- stat$rsids
+      rownames(z) <- stat$marker
       if(is.null(n)) {
-        if("n"%in%colnames(stat)) n <- mean(stat$n)
+        if("n"%in%colnames(stat)) n <- mean(stat$n,na.rm=T)
         if(!"n"%in%colnames(stat)) n <- neff(seb=stat$seb, af=stat$eaf)
       }
       nt <- 1
     }  
   }
   
+  # Partioned h2 - test version
+  if(!is.null(sets)) {
+    if(is.null(z)) stop("Please provide a vector/matrix of z-statistics") 
+    if(is.null(n)) stop("Please provide a vector/matrix of n")
+    if(is.null(ldscores)) stop("Please provide a vector ldscores")
+    if(!what=="h2") stop("Only h2 is currently only possible for partitioning")
+    h2set <- NULL
+    z <- as.matrix(z[rownames(z)%in%names(ldscores),,drop=FALSE])
+    n <- n[rownames(z),]
+    ldscores <- ldscores[rownames(z)]
+    nt <- ncol(z)
+    if(residual) sets <- append(sets, list(Residual=rownames(z)[!rownames(z)%in%unique(unlist(sets))]))
+    sets <- mapSets(sets=sets, rsids=rownames(z), index=FALSE)
+    for (i in 1:nt) {
+      y <- z[,i]**2  
+      X <- designMatrix(sets = sets, rowids = names(y), values=n*ldscores)
+      X <- X%*%Diagonal(x = 1/sapply(sets,length))
+      Xmu <- Matrix(1, nrow = nrow(X), ncol = 1, sparse = TRUE)
+      X <- cbind2(Xmu, X)
+      XX <- crossprod(X)
+      y <- y[rownames(X)]
+      Xy <- crossprod(X, y)
+      if(method=="regression") h2 <- solve(as.matrix(XX))%*%as.matrix(Xy)
+      if(method=="bayesC") {
+        fit <- blr(yy=sum(y**2), XX=as.matrix(XX), Xy=as.matrix(Xy), n=length(y),
+                   method=method, pi=0.01,
+                   nit=5000, nburn=1000)
+        h2 <- fit$bm
+      }
+      h2set <- cbind(h2set,h2)
+    }
+    colnames(h2set) <- colnames(z)
+    rownames(h2set) <- c("Intercept",names(sets))
+    return(h2set[-1,])
+  } 
+
   if(!is.null(z)) nt <- ncol(z)
   
   if(!is.null(b)) {
@@ -125,7 +165,7 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
       n <- c(n,neff(seb[,t],af[,t]))
     }
   }
-  maxZ2 <- max(0.001 * max(n), 80)
+  if(is.null(maxZ2)) maxZ2 <- max(0.001 * max(n), 80)
   h2 <- NULL
   for ( t in 1:nt) {
     z2 <- z[,t]**2
@@ -138,10 +178,14 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
     Xy <- crossprod(X,y)
     h2_ldsc <- solve(XtX, Xy)
     if(intercept){
-      if(h2_ldsc[2]<0) h2_ldsc[2] <- NA
+      if(is.na(h2_ldsc[2])) h2_ldsc[2] <- 0
+      if(h2_ldsc[2]<0) h2_ldsc[2] <- 0
+      if(h2_ldsc[2]>1) h2_ldsc[2] <- 1
     }
     if(!intercept){
-      if(h2_ldsc[1]<0) h2_ldsc[1] <- NA
+      if(is.na(h2_ldsc[1])) h2_ldsc[1] <- 0
+      if(h2_ldsc[1]<0) h2_ldsc[1] <- 0
+      if(h2_ldsc[1]>1) h2_ldsc[1] <- 1
     }
     h2 <- c(h2,h2_ldsc)
   }
@@ -157,8 +201,9 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
   }
   result <- h2
   if(intercept)  result <- h2[,2]
+  isNA <- result<=tol | is.na(result)
+  result[isNA] <- tol
   
-  #---------------------------------#
   # Block Jackknife to estimate h2 SE
   if(SE.h2==TRUE){
     if(intercept==TRUE){
@@ -235,12 +280,10 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
         XtX <- crossprod(X)
         Xy <- crossprod(X,y)
         if(intercept && !any(is.na(h2[c(t1,t2),2]))) rg[t1,t2] <- solve(XtX, Xy)[2]/(sqrt(h2[t1,2])*sqrt(h2[t2,2]))
-        #if(!intercept & !any(is.na(h2[c(t1,t2)]))) rg[t1,t2] <- solve(XtX,Xy)[2]/(sqrt(h2[t1])*sqrt(h2[t2]))
         if(!intercept && !any(is.na(h2[c(t1,t2)]))) rg[t1,t2] <- (Xy[2]/XtX[2,2])/(sqrt(h2[t1])*sqrt(h2[t2]))
       }
       if(intercept) rg[t1,t1] <- h2[t1,2]
       if(!intercept) rg[t1,t1] <- h2[t1]
-      #rg[t2,t1] <- rg[t1,t2]
     }
     rownames(rg) <- colnames(rg) <- colnames(z)
     result <- NULL
@@ -252,8 +295,15 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
     }
     diag(rg) <- 1 
     result$rg <- rg
+    result$rg[result$rg > 1] <- 1
+    result$rg[result$rg < -1] <- -1
     
-    #---------------------------------#
+    isNA <- result$h2<=tol | is.na(result$h2)
+    result$h2[isNA] <- tol
+    result$rg[isNA,] <- 0
+    result$rg[,isNA] <- 0
+    diag(result$rg) <- 1
+    
     # Block Jackknife to estimate rg SE
     if(SE.rg==TRUE){
       if(intercept==TRUE){
@@ -383,13 +433,8 @@ ldsc <- function(Glist=NULL, ldscores=NULL, z=NULL, b=NULL, seb=NULL, af=NULL, s
       }
     }
   }
-  
-  
   return(result)
 }
-
-
-
 
 neff <- function(seb=NULL,af=NULL,Vy=1) {
   seb2 <- seb**2

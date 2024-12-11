@@ -5,206 +5,136 @@
 \title{Finemapping using Bayesian Linear Regression Models}
 \usage{
 gmap(
-  y = NULL,
-  X = NULL,
-  W = NULL,
-  stat = NULL,
-  trait = NULL,
-  sets = NULL,
-  fit = NULL,
   Glist = NULL,
-  chr = NULL,
+  stat = NULL,
+  sets = NULL,
+  models = NULL,
   rsids = NULL,
   ids = NULL,
-  b = NULL,
-  bm = NULL,
-  seb = NULL,
   mask = NULL,
-  LD = NULL,
-  n = NULL,
-  vg = NULL,
-  vb = NULL,
-  ve = NULL,
-  ssg_prior = NULL,
-  ssb_prior = NULL,
-  sse_prior = NULL,
   lambda = NULL,
-  scaleY = TRUE,
-  shrinkLD = FALSE,
-  shrinkCor = FALSE,
-  formatLD = "dense",
-  pruneLD = TRUE,
-  r2 = 0.05,
-  checkLD = TRUE,
-  h2 = NULL,
-  pi = 0.001,
+  vb = NULL,
+  vg = NULL,
+  ve = NULL,
+  vy = NULL,
+  pi = NULL,
+  gamma = NULL,
+  mc = 5000,
+  h2 = 0.5,
+  nub = 4,
+  nug = 4,
+  nue = 4,
+  ssb_prior = NULL,
+  ssg_prior = NULL,
+  sse_prior = NULL,
+  vb_prior = NULL,
+  vg_prior = NULL,
+  ve_prior = NULL,
   updateB = TRUE,
   updateG = TRUE,
   updateE = TRUE,
   updatePi = TRUE,
-  adjustE = TRUE,
-  models = NULL,
+  formatLD = "dense",
+  checkLD = FALSE,
+  shrinkLD = FALSE,
+  shrinkCor = FALSE,
+  pruneLD = FALSE,
   checkConvergence = FALSE,
   critVe = 3,
-  critVg = 5,
-  critVb = 5,
+  critVg = 3,
+  critVb = 3,
   critPi = 3,
-  ntrial = 1,
-  nug = 4,
-  nub = 4,
-  nue = 4,
+  critB = 3,
+  critB1 = 0.5,
+  critB2 = 3,
   verbose = FALSE,
-  msize = 100,
-  threshold = NULL,
-  ve_prior = NULL,
-  vg_prior = NULL,
-  tol = 0.001,
-  nit = 100,
-  nburn = 50,
-  nit_local = NULL,
-  nit_global = NULL,
-  method = "bayesC",
-  algorithm = "mcmc"
+  eigen_threshold = 0.995,
+  cs_threshold = 0.9,
+  cs_r2 = 0.5,
+  nit = 1000,
+  nburn = 100,
+  nthin = 1,
+  output = "summary",
+  method = "bayesR",
+  algorithm = "mcmc-eigen",
+  seed = 10
 )
 }
 \arguments{
-\item{y}{A vector or matrix of phenotypes.}
+\item{Glist}{A list containing information on genotypic data, including SNPs, chromosomes, positions, and optionally, LD matrices.}
 
-\item{X}{A matrix of covariates.}
+\item{stat}{A data frame or list of summary statistics including effect sizes, standard errors, sample sizes, etc.}
 
-\item{W}{A matrix of centered and scaled genotypes.}
+\item{sets}{Optional list specifying sets of SNPs for mapping.}
 
-\item{stat}{Dataframe with marker summary statistics.}
+\item{models}{Optional list of predefined models for Bayesian regression.}
 
-\item{trait}{Integer used for selection traits in covs object.}
+\item{rsids}{Vector of SNP identifiers.}
 
-\item{sets}{A list of character vectors where each vector represents a set of items. If the names
-of the sets are not provided, they are named as "Set1", "Set2", etc.}
+\item{ids}{Vector of sample identifiers.}
 
-\item{fit}{List of results from gbayes.}
+\item{mask}{Logical matrix indicating SNPs to exclude from analysis.}
 
-\item{Glist}{List of information about genotype matrix stored on disk.}
+\item{lambda}{Vector of initial values for penalty parameters in the model.}
 
-\item{chr}{Chromosome for which to fit BLR models.}
+\item{vb}{Initial value for the marker effect variance (default: NULL).}
 
-\item{rsids}{Character vector of rsids.}
+\item{vg}{Initial value for the genetic variance (default: NULL).}
 
-\item{ids}{vector of individuals used in the study}
+\item{ve}{Initial value for the residual variance (default: NULL).}
 
-\item{b}{Vector or matrix of marginal marker effects.}
+\item{vy}{Initial value for the phenotypic variance (default: NULL).}
 
-\item{bm}{Vector or matrix of adjusted marker effects for the BLR model.}
+\item{pi}{Vector of initial values for pi parameters in the model (default of pi=c(0.999,0.001) for bayesC and pi=c(0.994,0.003,0.002,0.001).}
 
-\item{seb}{Vector or matrix of standard error of marginal effects.}
+\item{gamma}{Vector of initial values for gamma parameters in the model (default of gamma=c(0,1) for bayesC and gamma=c(0,0.01,0.1,1).}
 
-\item{mask}{Vector or matrix specifying if marker should be ignored.}
+\item{mc}{Number of potentiel genome-wide causal markers for the trait analysed - only used for specification of ssb_prior (default: 5000).}
 
-\item{LD}{List with sparse LD matrices.}
+\item{h2}{Heritability estimate (default: 0.5).}
 
-\item{n}{Scalar or vector of number of observations for each trait.}
+\item{nub, nug, nue}{Degrees of freedom parameters for the priors of marker, genetic, and residual variances, respectively.}
 
-\item{vg}{Scalar or matrix of genetic (co)variances.}
+\item{ssb_prior, ssg_prior, sse_prior}{Priors for the marker, genetic, and residual variances.}
 
-\item{vb}{Scalar or matrix of marker (co)variances.}
+\item{vb_prior, vg_prior, ve_prior}{Additional priors for marker, genetic, and residual variances (default: NULL).}
 
-\item{ve}{Scalar or matrix of residual (co)variances.}
+\item{updateB, updateG, updateE, updatePi}{Logical values specifying whether to update marker effects, genetic variance, residual variance, and inclusion probabilities, respectively.}
 
-\item{ssg_prior}{Scalar or matrix of prior genetic (co)variances.}
+\item{formatLD}{Format of LD matrix ("dense" by default).}
 
-\item{ssb_prior}{Scalar or matrix of prior marker (co)variances.}
+\item{checkLD}{Logical, whether to check the LD matrix for inconsistencies (default: FALSE).}
 
-\item{sse_prior}{Scalar or matrix of prior residual (co)variances.}
+\item{shrinkLD, shrinkCor}{Logical, whether to apply shrinkage to the LD or correlation matrices (default: FALSE).}
 
-\item{lambda}{Vector or matrix of lambda values}
+\item{pruneLD}{Logical, whether to prune LD matrix (default: FALSE).}
 
-\item{scaleY}{Logical indicating if y should be scaled.}
+\item{checkConvergence}{Logical, whether to check for convergence of the Gibbs sampler (default: FALSE).}
 
-\item{shrinkLD}{Logical indicating if LD should be shrunk.}
+\item{critVe, critVg, critVb, critPi, critB, critB1, critB2}{Convergence criteria for residual, genetic, and marker variances, inclusion probabilities, and marker effects.}
 
-\item{shrinkCor}{Logical indicating if cor should be shrunk.}
+\item{verbose}{Logical, whether to print detailed output for debugging (default: FALSE).}
 
-\item{formatLD}{Character specifying LD format (default is "dense").}
+\item{eigen_threshold}{Threshold for eigenvalues in eigen decomposition (default: 0.995).}
 
-\item{pruneLD}{Logical indicating if LD pruning should be applied.}
+\item{cs_threshold, cs_r2}{PIP and r2 thresholds credible set construction (default: cs_threshold=0.9, cs_r2=0.5)}
 
-\item{r2}{Scalar providing value for r2 threshold used in pruning}
+\item{nit}{Number of iterations in the MCMC sampler (default: 5000).}
 
-\item{checkLD}{Logical indicating if LD matches summary statistics.}
+\item{nburn}{Number of burn-in iterations (default: 500).}
 
-\item{h2}{Trait heritability.}
+\item{nthin}{Thinning interval for MCMC (default: 5).}
 
-\item{pi}{Proportion of markers in each marker variance class.}
+\item{output}{Level of output, options include "summary", "full".}
 
-\item{updateB}{Logical indicating if marker (co)variances should be updated.}
+\item{method}{The regression method to use, options include "blup", "bayesN", "bayesA", "bayesL", "bayesC", "bayesR".}
 
-\item{updateG}{Logical indicating if genetic (co)variances should be updated.}
+\item{algorithm}{Algorithm for MCMC sampling, options include "mcmc", "em-mcmc", "mcmc-eigen".}
 
-\item{updateE}{Logical indicating if residual (co)variances should be updated.}
-
-\item{updatePi}{Logical indicating if pi should be updated.}
-
-\item{adjustE}{Logical indicating if residual variance should be adjusted.}
-
-\item{models}{List structure with models evaluated in bayesC.}
-
-\item{checkConvergence}{Logical indicating if convergences should be checked.}
-
-\item{critVe}{Scalar providing value for z-score threshold used in checking convergence for Ve}
-
-\item{critVg}{Scalar providing value for z-score threshold used in checking convergence for Vg}
-
-\item{critVb}{Scalar providing value for z-score threshold used in checking convergence for Vg}
-
-\item{critPi}{Scalar providing value for z-score threshold used in checking convergence for Pi}
-
-\item{ntrial}{Integer providing number of trials used if convergence is not obtaines}
-
-\item{nug}{Scalar or vector of prior degrees of freedom for genetic (co)variances.}
-
-\item{nub}{Scalar or vector of prior degrees of freedom for marker (co)variances.}
-
-\item{nue}{Scalar or vector of prior degrees of freedom for residual (co)variances.}
-
-\item{verbose}{Logical; if TRUE, it prints more details during iteration.}
-
-\item{msize}{Integer providing number of markers used in computation of sparseld}
-
-\item{threshold}{Scalar providing value for threshold used in adjustment of B}
-
-\item{ve_prior}{Scalar or matrix of prior residual (co)variances.}
-
-\item{vg_prior}{Scalar or matrix of prior genetic (co)variances.}
-
-\item{tol}{Convergence criteria used in gbayes.}
-
-\item{nit}{Number of iterations.}
-
-\item{nburn}{Number of burnin iterations.}
-
-\item{nit_local}{Number of local iterations.}
-
-\item{nit_global}{Number of global iterations.}
-
-\item{method}{Method used (e.g. "bayesN","bayesA","bayesL","bayesC","bayesR").}
-
-\item{algorithm}{Specifies the algorithm.}
+\item{seed}{Random seed for reproducibility (default: 10).}
 }
 \value{
-A list containing:
-\itemize{
-  \item{\code{bm}}{Vector or matrix of posterior means for marker effects.}
-  \item{\code{dm}}{Vector or matrix of posterior means for marker inclusion probabilities.}
-  \item{\code{vb}}{Scalar or vector of posterior means for marker variances.}
-  \item{\code{vg}}{Scalar or vector of posterior means for genomic variances.}
-  \item{\code{ve}}{Scalar or vector of posterior means for residual variances.}
-  \item{\code{rb}}{Matrix of posterior means for marker correlations.}
-  \item{\code{rg}}{Matrix of posterior means for genomic correlations.}
-  \item{\code{re}}{Matrix of posterior means for residual correlations.}
-  \item{\code{pi}}{Vector of posterior probabilities for models.}
-  \item{\code{h2}}{Vector of posterior means for model probability.}
-  \item{\code{param}}{List of current parameters used for restarting the analysis.}
-  \item{\code{stat}}{Matrix of marker information and effects used for genomic risk scoring.}
-}
+Returns a list structure including the following components:
 }
 \description{
 In the Bayesian multiple regression model, the posterior density of the model parameters depends
@@ -215,39 +145,6 @@ The choice of the prior for marker effects can influence the type and extent of 
 This function implements Bayesian linear regression models to provide unified mapping of 
 genetic variants, estimate genetic parameters (e.g. heritability), and predict disease risk.
 It is designed to handle various genetic architectures and scale efficiently with large datasets.
-}
-\examples{
-
-# Plink bed/bim/fam files
-bedfiles <- system.file("extdata", paste0("sample_chr",1:2,".bed"), package = "qgg")
-bimfiles <- system.file("extdata", paste0("sample_chr",1:2,".bim"), package = "qgg")
-famfiles <- system.file("extdata", paste0("sample_chr",1:2,".fam"), package = "qgg")
-
-# Prepare Glist
-Glist <- gprep(study="Example", bedfiles=bedfiles, bimfiles=bimfiles, famfiles=famfiles)
-
-# Simulate phenotype
-sim <- gsim(Glist=Glist, chr=1, nt=1)
-
-# Compute single marker summary statistics
-stat <- glma(y=sim$y, Glist=Glist, scale=FALSE)
-str(stat)
-
-# Define fine-mapping regions 
-sets <- Glist$rsids
-Glist$chr[[1]] <- gsub("21","1",Glist$chr[[1]]) 
-Glist$chr[[2]] <- gsub("22","2",Glist$chr[[2]]) 
-
-# Fine map
-fit <- gmap(Glist=Glist, stat=stat, sets=sets, verbose=FALSE, 
-            method="bayesC", nit=1500, nburn=500, pi=0.001)
-            
-fit$post  # Posterior inference for every fine-mapped region
-fit$conv  # Convergence statistics for every fine-mapped region
-
-# Posterior inference for marker effect
-head(fit$stat)             
-
 }
 \author{
 Peter Sørensen

@@ -10,7 +10,7 @@
 
 
 /* .Call calls */
-extern SEXP _qgg_bayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_bayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_cp(SEXP);
 extern SEXP _qgg_freqbed(SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_readW(SEXP, SEXP, SEXP, SEXP);
@@ -18,10 +18,11 @@ extern SEXP _qgg_getWlist(SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_grsbed(SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_mmult(SEXP, SEXP);
 extern SEXP _qgg_mtbayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
-extern SEXP _qgg_mtsbayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_mtsbayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_mtblr(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_mtgrsbed(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_mtsolvebed(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
-extern SEXP _qgg_mvrnorm(SEXP);
+extern SEXP _qgg_mvrnormARMA(SEXP);
 extern SEXP _qgg_pruneld(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_pruneldmat(SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_psets(SEXP, SEXP, SEXP, SEXP);
@@ -29,14 +30,15 @@ extern SEXP _qgg_readG(SEXP, SEXP, SEXP);
 extern SEXP _qgg_riwishart(SEXP, SEXP);
 extern SEXP _qgg_rwishart(SEXP, SEXP);
 extern SEXP _qgg_sbayes(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
-extern SEXP _qgg_sbayes_spa(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
-extern SEXP _qgg_sbayes_reg(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_sbayes_spa(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_sbayes_reg_eigen(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _qgg_sbayes_reg(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_solvebed(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP _qgg_summarybed(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_qgg_bayes",                 (DL_FUNC) &_qgg_bayes,                 18},
+    {"_qgg_bayes",                 (DL_FUNC) &_qgg_bayes,                 21},
     {"_qgg_cp",                    (DL_FUNC) &_qgg_cp,                     1},
     {"_qgg_freqbed",               (DL_FUNC) &_qgg_freqbed,                4},
     {"_qgg_readW",                 (DL_FUNC) &_qgg_readW,                  4},
@@ -44,10 +46,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_qgg_grsbed",                (DL_FUNC) &_qgg_grsbed,                 5},
     {"_qgg_mmult",                 (DL_FUNC) &_qgg_mmult,                  2},
     {"_qgg_mtbayes",               (DL_FUNC) &_qgg_mtbayes,               16},
-    {"_qgg_mtsbayes",               (DL_FUNC) &_qgg_mtsbayes,               20},
+    {"_qgg_mtsbayes",               (DL_FUNC) &_qgg_mtsbayes,               23},
+    {"_qgg_mtblr",               (DL_FUNC) &_qgg_mtblr,               23},
     {"_qgg_mtgrsbed",              (DL_FUNC) &_qgg_mtgrsbed,               6},
     {"_qgg_mtsolvebed",            (DL_FUNC) &_qgg_mtsolvebed,             8},
-    {"_qgg_mvrnorm",               (DL_FUNC) &_qgg_mvrnorm,                1},
+    {"_qgg_mvrnormARMA",               (DL_FUNC) &_qgg_mvrnormARMA,                1},
     {"_qgg_pruneld",               (DL_FUNC) &_qgg_pruneld,                6},
     {"_qgg_pruneldmat",            (DL_FUNC) &_qgg_pruneldmat,             5},
     {"_qgg_psets",                 (DL_FUNC) &_qgg_psets,                  4},
@@ -55,8 +58,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_qgg_riwishart",             (DL_FUNC) &_qgg_riwishart,              2},
     {"_qgg_rwishart",              (DL_FUNC) &_qgg_rwishart,               2},
     {"_qgg_sbayes",                (DL_FUNC) &_qgg_sbayes,                19},
-    {"_qgg_sbayes_spa",                (DL_FUNC) &_qgg_sbayes_spa,                28},
-    {"_qgg_sbayes_reg",                (DL_FUNC) &_qgg_sbayes_reg,                27},
+    {"_qgg_sbayes_spa",                (DL_FUNC) &_qgg_sbayes_spa,                29},
+    {"_qgg_sbayes_reg_eigen",                (DL_FUNC) &_qgg_sbayes_reg_eigen,                29},
+    {"_qgg_sbayes_reg",                (DL_FUNC) &_qgg_sbayes_reg,                30},
     {"_qgg_solvebed",              (DL_FUNC) &_qgg_solvebed,               8},
     {"_qgg_summarybed",            (DL_FUNC) &_qgg_summarybed,             6},
     {NULL, NULL, 0}

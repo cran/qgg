@@ -47,12 +47,17 @@
 #' @author Peter Soerensen
 #' 
 #' @keywords internal
+#' 
 #' @export
-
-qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05, 
-                   excludeINFO=0.8, excludeCGAT=TRUE, excludeINDEL=TRUE, 
-                   excludeDUPS=TRUE, excludeMHC=FALSE, excludeMISS=0.05, 
-                   excludeHWE=1e-12) {
+#' 
+checkStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05, 
+                      excludeINFO=0.8, excludeCGAT=TRUE, excludeINDEL=TRUE, 
+                      excludeDUPS=TRUE, excludeMHC=FALSE, excludeMISS=0.05, 
+                      excludeHWE=1e-12) {
+  
+  # Some summary statistics provide ea and nea in lower case
+  stat$ea <- toupper(stat$ea)
+  stat$nea <- toupper(stat$nea)
   
   # we use cpra to link sumstats and Glist
   cpra <- unlist(Glist$cpra)
@@ -69,7 +74,8 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
   
   fm_internal <- c("rsids","chr","pos","ea","nea","eaf","b","seb","p","n","info")
   fm_external <- c("marker","chr","pos","ea","nea","eaf","b","seb","p","n","info")
-
+  fm_gbayes <- c("rsids","chr","pos","ea","nea","eaf","bm","dm","vm")
+  
   # external summary statistic column format
   # optimal format:
   # marker, chromosome, position, effect_allele, non_effect_allele, 
@@ -86,7 +92,11 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
   
   if(all(fm_internal[1:5]%in%colnames(stat))) format <- "internal"
   if(all(fm_external[1:5]%in%colnames(stat))) format <- "external"
-  
+  if(all(fm_gbayes%in%colnames(stat))) {
+    stat <- stat[,1:7]
+    colnames(stat) <- c("rsids","chr","pos","ea","nea","eaf","b")
+    format <- "internal"
+  }
   if(format=="unknown") {
     message("Column headings for stat object not found")
     message("Column headings for stat object should minimal be:")
@@ -131,8 +141,6 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
                        ea=unlist(Glist$a1), nea=unlist(Glist$a2),
                        eaf=unlist(Glist$af),stringsAsFactors = FALSE)
   
-  rownames(marker) <- marker$rsids
-  
   message("Filtering markers based on information in Glist:")
   message("")
   
@@ -155,6 +163,8 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
     message("")
     marker <- marker[marker$rsids%in%rsids,]
   }
+
+  rownames(marker) <- marker$rsids
   
   message("Filtering markers based on information in stat:")
   message("")
@@ -173,7 +183,7 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
   message(paste("Number of effect alleles not aligned with first allele in bimfiles:", sum(!aligned)))
   message("")
   
-
+  
   # align stat if format external
   #if(format=="external") {
   
@@ -188,7 +198,7 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
   stat[!aligned,"ea"] <- non_effect_allele[!aligned]
   stat[!aligned,"nea"] <- effect_allele[!aligned] 
   if(!is.null(stat$eaf)) stat[!aligned,"eaf"] <- 1-effect_allele_freq[!aligned]
-
+  
   if(is.null(stat$eaf)) {
     message("No effect allele frequency (eaf) provided - using eaf in Glist")
     stat$eaf <- marker$eaf
@@ -201,15 +211,25 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
   stat <- stat[!excludeMAFDIFF,]
   marker <- marker[!excludeMAFDIFF,]
   
+  if(colnames(stat)[1]=="marker")  colnames(stat)[1] <- "rsids"
+    
   #colnames(stat) <- fm_internal
-  if(is.null(stat$n)) stat$n <- neff(seb=stat$seb,af=stat$eaf)
-
+  #if(is.null(stat$n)) stat$n <- neff(seb=stat$seb,af=stat$eaf)
+  if(is.null(stat$n)) stat$n <- 4/((2*stat$eaf*(1-stat$eaf))*stat$seb^2)
+  
+  if(!is.null(excludeMAF)) stat <- stat[stat$eaf>excludeMAF,]
+  if(!is.null(excludeMAF)) stat <- stat[stat$eaf<(1-excludeMAF),]
+  
   if(!is.null(stat$info)) {
     lowINFO <- stat$info < excludeINFO
     message(paste("Number of markers excluded by low INFO score:", sum(lowINFO)))
     message("")
     stat <- stat[!lowINFO,]
-  }  
+  }
+  
+  clsstat <- c("rsids","chr","pos","ea","nea","eaf","b","seb","p","n","info")%in%colnames(stat)
+  clsstat <- c("rsids","chr","pos","ea","nea","eaf","b","seb","p","n","info")[clsstat]
+  colnames(stat) <- clsstat
   return(stat)
 }
 
@@ -238,15 +258,9 @@ qcStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05,
 #' For details about the summary statistics format, see the main function description.
 #'
 #' @author Peter Soerensen
-#' @export
-
-
-#' @author Peter Soerensen
-
-#'
+#' 
 #' @export
 #'
-
 adjStat <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "b", 
                     r2 = 0.9, ldSets = NULL, threshold = 1, header=NULL,
                     method = "pruning") {
@@ -260,12 +274,10 @@ adjStat <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "b",
   p[p>0] <- 1
   if(is.null(header)) header <- c("rsids","chr","pos","ea","nea","eaf")
   
-  
   if(is.data.frame(stat)) {
     if(statistics=="b") {
       b <- stat[rownames(p),"b"]
       badj <- p*b
-      #badj <- p*stat[rownames(p),"b"]
       colnames(badj) <- paste0("b_",threshold)
       if(any(colnames(stat)%in%header)) statadj <- data.frame(stat[rownames(badj),colnames(stat)%in%header],b,badj)
       if(!any(colnames(stat)%in%header)) statadj <- as.matrix(data.frame(b,badj))
@@ -274,7 +286,6 @@ adjStat <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "b",
     if(statistics=="z") {
       z <- stat[rownames(p),"b"]/stat[rownames(p),"seb"]
       zadj <- p*z
-      #zadj <- p*stat[rownames(p),"b"]/stat[rownames(p),"seb"]
       colnames(zadj) <- paste0("z_",threshold)
       if(any(colnames(stat)%in%header)) statadj <- data.frame(stat[rownames(zadj),colnames(stat)%in%header],z,zadj)
       if(!any(colnames(stat)%in%header)) statadj <- as.matrix(data.frame(z,zadj))
@@ -303,7 +314,6 @@ adjStat <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "b",
       return(statadj)
     }
   }
-  
 }
 
 
@@ -319,10 +329,11 @@ adjStat <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "b",
 #' @param r2 Threshold used in the clumping/pruning procedure. Default is 0.9.
 #' @param threshold P-value threshold used in LD pruning.
 #' @param method Method used in adjustment for linkage disequilibrium. Options are "pruning" or "clumping". Default is "pruning".
+#' 
 #' @keywords internal
-
+#' 
 #' @export
-
+#' 
 adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r2 = 0.9, ldSets = NULL, threshold = 1,
                   method = "pruning") {
   
@@ -340,7 +351,6 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
     message(paste("Number of rsids not found in LD matrices:", sum(!rsidsMapped)))
     if(nrow(stat)<1) stop("No rsids remaining for pruning")
   }
-  #rownames(pstat) <- rsidsStat
   if(is.null(colnames(stat))) colnames(stat) <- paste0("stat",1:ncol(stat))
   res <- NULL
   if (method %in% c("pruning", "clumping")) {
@@ -359,7 +369,6 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
       for (chr in chromosomes) {
         message(paste("Extract LD information for chromosome:", chr))
         ldSets[[chr]] <- getLDsets(Glist = Glist, r2 = r2, chr = chr)
-        #ldSets[[chr]] <- mapSets(sets = ldSets[[chr]], rsids = rsidsStat)
       }
     }
     for (chr in chromosomes) {
@@ -374,11 +383,6 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
         indx2 <- rep(F, m)
         message(paste("Pruning stat column:", i,"using threshold:",thold))
         for (chr in chromosomes) {
-          #if (!is.null(Glist)) {
-          #message(paste("Pruning chromosome:", chr, "for stat column:", colnames(pstat)[i]))
-          #if(i==1) setsChr[[chr]] <- getLDsets(Glist = Glist, r2 = r2, chr = chr)
-          #if(i==1) setsChr[[chr]] <- mapSets(sets = setsChr[[chr]], rsids = rsidsStat)
-          #}
           if (!is.null(ldSets)) setsChr <- ldSets[[chr]]
           setsChr <- setsChr[names(setsChr)%in%rsidsStat]
           rsidsChr <- names(setsChr)
@@ -394,7 +398,6 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
               }
             }
           }
-          #message(paste("Finished pruning chromosome:", chr, "for stat column:", colnames(pstat)[i]))
         }
         if (method == "clumping") {
           pstat[indx1, i] <- 0
@@ -408,18 +411,14 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
     }
     
   }
-  #res <- res[!rowSums(res == 0) == ncol(res), ]
   if (length(chromosomes)==1) res <- res[rownames(res)%in%rsidsChr,]
   return(res)
 }
 
-
-
 #' Check concordance between marker effect and sparse LD matrix.
+#' 
 #' @description
 #' Check concordance between predicted and observed marker effect. Marker effect is predicted based on sparse LD matrix in Glist.
-#' 
-#' @keywords internal
 #' 
 #' @param Glist list of information about genotype matrix stored on disk
 #' @param stat data frame with marker summary statistics (see required format above)
@@ -429,9 +428,11 @@ adjLD <- function(stat = NULL, Glist = NULL, chr=NULL, statistics = "p-value", r
 #' @param msize is the number of markers used in the prediction
 #' @param overlap is the number of markers overlapping between adjacent genome region
 #' @param niter is the number of iteration used for detecting outliers
+#' 
+#' @keywords internal
+#' 
 #' @export
-
-
+#' 
 adjLDStat <- function(stat=NULL, Glist = NULL, chr = NULL, region=NULL, msize=NULL, threshold=1e-5, overlap=NULL, niter=5) {
   
   if(is.null(stat)) stop("Please provide stat")
@@ -470,8 +471,6 @@ adjLDStat <- function(stat=NULL, Glist = NULL, chr = NULL, region=NULL, msize=NU
         z[j] <- sum(WW[j,-j]*solve(WW[-j,-j])%*%zo[-j])
         vz[j] <- 1- t(WW[j,-j])%*%solve(WW[-j,-j])%*%WW[j,-j]
       }
-      #plot(y=z,x=zo,ylab="Predicted", xlab="Observed",  frame.plot=FALSE)
-      #abline(0,1, lwd=2, col=2, lty=2)
       tstat <- ((zo-z)**2)/vz
       p <- 1-pchisq(tstat,1)
       problem_rsids[sets[[i]][p<threshold]] <- TRUE 
@@ -479,7 +478,6 @@ adjLDStat <- function(stat=NULL, Glist = NULL, chr = NULL, region=NULL, msize=NU
     }
     remove_rsids <- names(problem_rsids)[problem_rsids]
     keep <- which.min(chrStat[remove_rsids,"p"])
-    #remove_rsids <- remove_rsids[-keep] 
   }
   rsidsStat <- rownames(stat)
   rsidsChr <- rownames(stat[stat$chr==chr,])
@@ -522,7 +520,6 @@ adjLDStat <- function(stat=NULL, Glist = NULL, chr = NULL, region=NULL, msize=NU
 # }
 
 
-#'
 #' Map marker summary statistics to Glist
 #'
 #' @description
@@ -557,15 +554,13 @@ adjLDStat <- function(stat=NULL, Glist = NULL, chr = NULL, region=NULL, msize=NU
 #' @param excludeMHC exclude marker if located in MHC region 
 #' @param excludeINDEL exclude marker if it an insertion/deletion  
 #' @param excludeDUPS exclude marker id if duplicated
+#' 
 #' @keywords internal
-
-
+#' 
 #' @author Peter Soerensen
-
 #'
 #' @export
 #'
-
 mapStat <- function(Glist=NULL, stat=NULL, excludeMAF=0.01, excludeMAFDIFF=0.05, 
                     excludeINFO=0.8, excludeCGAT=TRUE, excludeINDEL=TRUE, 
                     excludeDUPS=TRUE, excludeMHC=FALSE,excludeMISS=0.05, 
